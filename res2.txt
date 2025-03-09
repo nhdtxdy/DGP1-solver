@@ -1,0 +1,64 @@
+-------------------------
+Solution 1:
+Vertex 1 -> 0
+Vertex 3 -> 2
+Vertex 5 -> 3
+Vertex 2 -> 1
+Vertex 4 -> 3
+-------------------------
+-------------------------
+Solution 2:
+Vertex 1 -> 0
+Vertex 3 -> 2
+Vertex 5 -> 3
+Vertex 2 -> 1
+Vertex 4 -> 1
+-------------------------
+-------------------------
+Solution 3:
+Vertex 1 -> 0
+Vertex 3 -> 0
+Vertex 5 -> 1
+Vertex 2 -> -1
+Vertex 4 -> 1
+-------------------------
+-------------------------
+Solution 4:
+Vertex 1 -> 0
+Vertex 3 -> 0
+Vertex 5 -> 1
+Vertex 2 -> -1
+Vertex 4 -> -1
+-------------------------
+-------------------------
+Solution 5:
+Vertex 1 -> 0
+Vertex 3 -> 0
+Vertex 5 -> -1
+Vertex 2 -> 1
+Vertex 4 -> 1
+-------------------------
+-------------------------
+Solution 6:
+Vertex 1 -> 0
+Vertex 3 -> 0
+Vertex 5 -> -1
+Vertex 2 -> 1
+Vertex 4 -> -1
+-------------------------
+-------------------------
+Solution 7:
+Vertex 1 -> 0
+Vertex 3 -> -2
+Vertex 5 -> -3
+Vertex 2 -> -1
+Vertex 4 -> -1
+-------------------------
+-------------------------
+Solution 8:
+Vertex 1 -> 0
+Vertex 3 -> -2
+Vertex 5 -> -3
+Vertex 2 -> -1
+Vertex 4 -> -3
+-------------------------

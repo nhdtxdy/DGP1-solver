@@ -7,6 +7,7 @@
 #include <tuple>
 #include <unordered_map>
 #include "dsu.h"
+#include <optional>
 
 using Rule = std::tuple<int, int, double>;
 
@@ -45,14 +46,14 @@ private:
     int timer = 0;
     int n;
     
-    bool bridge_opt_set, list_all_solutions;
+    bool bridge_opt_set, m_listAllSolutions;
 
     void bfs(int v);
     void dfs(int v, int par);
     void getsz(int v, int par);
     std::vector<int> buildDfsTree(const std::vector<int> &idx);
     bool tryAssign(int v, double val);
-    int tryAssignAll(int v, double val, std::vector<std::unordered_map<int, double>> &res, int order, int par);
+    std::optional<std::vector<std::unordered_map<int, double>>> tryAssignAll(int v, double val, int par = -1);
     std::vector<int> getOrder(OptimizationSetting opt);
     int buildAdjFromEdges();
     void dfs_bridges(int v, int par = -1);

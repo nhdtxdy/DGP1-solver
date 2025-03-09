@@ -5,46 +5,123 @@
 #include "dsu.h"
 using namespace std;
 
+void merge(vector<unordered_map<int, double>> &base, vector<unordered_map<int, double>> to_merge) {
+    vector<unordered_map<int, double>> merged;
+    for (const unordered_map<int, double>& b : base) {
+        for (const unordered_map<int, double> &tm : to_merge) {
+            unordered_map<int, double> cpy = b;
+            cpy.insert(tm.begin(), tm.end());
+            merged.push_back(cpy);
+        }
+    }
+    swap(base, merged);
+}
+
+optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double val, int par) {
+    // detect back edge
+    value[v] = val;
+    // cerr << "v - value: " << v << ' ' << val << '\n';
+
+    for (auto &p : back_adj[v]) {
+        int u = p.v;
+        double w = p.weight;
+        if (fabs(fabs(value[v] - value[u]) - w) > eps) {
+            // cerr << u << ' ' << v << ' ' << value[u] << ' ' << value[v] << ' ' << w << '\n';
+            return nullopt;
+        }
+    }
+
+    vector<unordered_map<int, double>> merged;
+    unordered_map<int, double> single_map;
+    single_map[v] = val;
+    merged.push_back(single_map);
+
+    for (auto &p : dfs_tree_adj[v]) {
+        int u = p.v;
+        double w = p.weight;
+        if (u == par) continue;
+
+        // should guarantee no bridge
+        // if (bridge_opt_set && bridges.count({v, u})) continue;
+
+        // TO STUDY: TRAVERSAL ORDER HEURISTICS (BIG CHILD?)
+
+        vector<unordered_map<int, double>> to_merge;
+
+        auto d1 = tryAssignAll(u, val + w, v);
+        if (d1.has_value()) {
+            swap(to_merge, d1.value());
+            // const vector<unordered_map<int, double>> &d1_value = d1.value();
+            // to_merge.insert(to_merge.end(), d1_value.begin(), d1_value.end());
+        }
+
+        if (this->m_listAllSolutions || to_merge.empty()) {
+            const auto &d2 = tryAssignAll(u, val - w, v);
+            if (d2.has_value()) {
+                const vector<unordered_map<int, double>> &d2_value = d2.value();
+                to_merge.insert(to_merge.end(), d2_value.begin(), d2_value.end());
+            }
+        }
+
+        if (to_merge.empty()) {
+            // cerr << v << ' ' << val << " WTF\n";
+            return nullopt;
+        }
+
+        merge(merged, to_merge);
+    }
+
+    // cerr << "v - merged: " << v << '\n';
+    // for (int i = 0; i < merged.size(); ++i) {
+    //     for (auto &p : merged[i]) {
+    //         cerr << p.first << ' ' << p.second << '\n';
+    //     }
+    //     cerr << '\n';
+    // }
+    // cerr << '\n';
+
+    return merged;
+}
+
 // -------------------------
 // DFS helper for computing translations
 // -------------------------
 // Here we use an unordered_map version if desired, but here we assume T is a vector
 // with contiguous indices (0...k-1). (k is the number of distinct DSU representatives
 // that appear in the merged solution.)
-void dfsTranslations(int curr,
-                     const vector<vector<pair<int, double>>>& compAdj,
-                     vector<double> &T,
-                     vector<bool> &visited,
-                     vector<vector<double>> &solutions)
+vector<unordered_map<int, double>> dfsTranslations(int v,
+                    double val,
+                    int par,
+                    const vector<vector<tuple<int, double, double>>>& compAdj,
+                    bool listAllSolutions)
 {
-    visited[curr] = true;
-    for (const auto &edge : compAdj[curr]) {
-        int nxt = edge.first;
-        double delta = edge.second;
-        if (!visited[nxt]) {
-            // Branch: two possibilities.
-            {
-                vector<double> T_copy = T;
-                vector<bool> visited_copy = visited;
-                T_copy[nxt] = T[curr] - delta;
-                dfsTranslations(nxt, compAdj, T_copy, visited_copy, solutions);
-            }
-            {
-                vector<double> T_copy = T;
-                vector<bool> visited_copy = visited;
-                T_copy[nxt] = T[curr] + delta;
-                dfsTranslations(nxt, compAdj, T_copy, visited_copy, solutions);
-            }
+    vector<unordered_map<int, double>> merged;
+    unordered_map<int, double> single_map;
+    single_map[v] = val;
+    merged.push_back(single_map);
+
+    for (auto &p : compAdj[v]) {
+        int u;
+        double w;
+        double cur_dist;
+        tie(u, w, cur_dist) = p;
+        if (u == par) continue;
+
+        vector<unordered_map<int, double>> to_merge;
+
+        // v -> u: cur_dist, want w
+        auto d1_value = dfsTranslations(u, val + (w - cur_dist), v, compAdj, listAllSolutions);
+        swap(to_merge, d1_value);
+
+        if (listAllSolutions || to_merge.empty()) {
+            const auto &d2_value = dfsTranslations(u, val + (-w - cur_dist), v, compAdj, listAllSolutions);
+            to_merge.insert(to_merge.end(), d2_value.begin(), d2_value.end());
         }
+
+        merge(merged, to_merge);
     }
-    // If all vertices in the connected subgraph have been assigned, record T.
-    bool complete = true;
-    for (double t : T) {
-        if (isnan(t)) { complete = false; break; }
-    }
-    if (complete) {
-        solutions.push_back(T);
-    }
+
+    return merged;
 }
 
 
@@ -70,31 +147,34 @@ public:
     CombinedSolutionIterator(
          const vector<vector<unordered_map<int, double>>>& all_res,
          const vector<Rule>& rules,
-         const vector<int>& compMap)
-         : all_res(all_res), rules(rules), compMap(compMap), has_next(true)
+         const vector<int>& compMap,
+         bool listAllSolutions)
+         : all_res(all_res), rules(rules), compMap(compMap), has_next(true), m_listAllSolutions(listAllSolutions)
     {
          int numComponents = all_res.size();
          indices.resize(numComponents, 0);
          for (int i = 0; i < numComponents; i++) {
              if (all_res[i].empty()) {
-                cerr << "NGU\n";
+                // cerr << "NGU\n";
                 has_next = false;
                 break;
              }
          }
          int n = compMap.size() - 1;
          for (int i = 1; i <= n; ++i) {
-             int rep = compMap[i];
-             compSet.insert(rep);
+            int rep = compMap[i];
+            // cerr << i << ' ' << rep << '\n';
+            compSet.insert(rep);
          }
          // Map each DSU rep to a contiguous index.
-         unordered_map<int, int> repToIndex;
          int idx = 0;
          for (int rep : compSet) {
              repToIndex[rep] = idx++;
-             cerr << "rep - idx: " << rep << ' ' << idx << '\n';
+             // cerr << "rep - idx: " << rep << ' ' << idx << '\n';
          }
+         // cerr << "RTI size: " << repToIndex.size() << '\n';
          advanceBuffer(); // Preload buffer from the first merged candidate.
+         // cerr << "here\n";
     }
     
     // Returns true if there is another combined (scaled) solution.
@@ -117,7 +197,7 @@ private:
     const vector<tuple<int, int, double>>& rules;
     const vector<int>& compMap;  // DSU representative for each vertex (1-indexed).
     vector<int> indices;         // current candidate index for each component.
-    bool has_next;
+    bool has_next, m_listAllSolutions;
     vector<unordered_map<int, double>> buffer;  // buffer holding scaled solutions for current merged candidate.
     
     set<int> compSet;
@@ -161,11 +241,12 @@ private:
     //    T[comp(u)'] - T[comp(v)'] = ± (w - (merged[u] - merged[v])),
     // where comp(u)' is the re-indexed component.
     // Since compMap is not necessarily 0-indexed, we first re-index.
-    vector<vector<double>> scaleAllTranslations(const unordered_map<int, double>& merged) {
+    vector<unordered_map<int, double>> scaleAllTranslations(const unordered_map<int, double>& merged) {
          // Determine the set of DSU reps that occur in merged.
          int k = repToIndex.size();
+         // cerr << "k = " << k << '\n';
          // Build the component adjacency list.
-         vector<vector<pair<int, double>>> compAdj(k);
+         vector<vector<tuple<int, double, double>>> compAdj(k);
          // For each rule, if both vertices appear in merged, add an edge.
          for (const auto &r : rules) {
               int u, v;
@@ -176,25 +257,21 @@ private:
               // Get re-indexed component indices.
               int cu = repToIndex[rep_u];
               int cv = repToIndex[rep_v];
-              int cur_dist = merged[v] - merged[u];
-              // u->v
-              compAdj[cu].push_back({cv, w - cur_dist});
-              compAdj[cu].push_back({cv, (-w) - cur_dist});
+              int cur_dist = merged.at(v) - merged.at(u);
 
-              cur_dist = -cur_dist;
-              compAdj[cv].push_back({cu, w - cur_dist});
-              compAdj[cv].push_back({cu, (-w) - cur_dist});
+              // u -> v
+              compAdj[cu].push_back({cv, w, cur_dist});
+
+              // v -> u
+              compAdj[cv].push_back({cu, w, -cur_dist});
          }
-         
+        
+        // cerr << "here\n";
+
          // Prepare translation vector T for k components, initially set to NAN.
-         vector<double> T(k, NAN);
          // Choose a base: here we choose the component corresponding to the smallest rep in compSet.
          int base = repToIndex[*compSet.begin()];
-         T[base] = 0.0;
-         vector<bool> visited(k, false);
-         vector<vector<double>> allT;
-         dfsTranslations(base, compAdj, T, visited, allT);
-         return allT;
+         return dfsTranslations(base, 0, -1, compAdj, m_listAllSolutions);
     }
     
     // For the current merged candidate solution, generate the scaled solutions and fill the buffer.
@@ -202,17 +279,17 @@ private:
     void advanceBuffer() {
          if (!has_next) return;
          unordered_map<int, double> merged = mergeCurrentCandidate();
-         vector<vector<double>> translations = scaleAllTranslations(merged);
-         cerr << "Translation size: " << translations.size() << '\n';
-         cerr << "ADVANCE BUFFER:\n";
-         cerr << "MERGED:\n";
-         for (auto &p : merged) {
-            cerr << p.first << ' ' << p.second << '\n';
-         }
-         cerr << "compMap: " << '\n';
-         for (int i = 0; i < compMap.size(); ++i) {
-            cerr << i << ' ' << compMap[i] << '\n';
-         }
+         vector<unordered_map<int, double>> translations = scaleAllTranslations(merged);
+         // cerr << "Translation size: " << translations.size() << '\n';
+         // cerr << "ADVANCE BUFFER:\n";
+         // cerr << "MERGED:\n";
+         // for (auto &p : merged) {
+            // cerr << p.first << ' ' << p.second << '\n';
+         // }
+         // cerr << "compMap: " << '\n';
+         // for (int i = 0; i < compMap.size(); ++i) {
+            // cerr << i << ' ' << compMap[i] << '\n';
+         // }
          // For each translation vector, compute the scaled solution.
          for (const auto &T : translations) {
               unordered_map<int, double> scaled;
@@ -225,7 +302,7 @@ private:
                   // Build repToIndex mapping for merged.
                   // (Rebuild it here; alternatively, cache it.)
                   int compIdx = repToIndex[rep];
-                  scaled[u] = p.second + T[compIdx];
+                  scaled[u] = p.second + T.at(compIdx);
               }
               buffer.push_back(scaled);
          }
@@ -267,7 +344,6 @@ Solver::Solver(int n, const vector<Edge>& edges) {
         cerr << "Error: Graph is not connected\n";
         exit(1);
     }
-    find_bridges();
 }
 
 // void Solver::bfs(int v) {
@@ -401,61 +477,6 @@ vector<int> Solver::buildDfsTree(const vector<int> &idx) {
 //     return ok;
 // }
 
-int Solver::tryAssignAll(int v, double val, vector<unordered_map<int, double>> &res, int order = 1, int par = -1) {
-    value[v] = val;
-
-    // detect back edge
-
-    for (auto &p : back_adj[v]) {
-        int u = p.v;
-        double w = p.weight;
-        if (fabs(fabs(value[v] - value[u]) - w) > eps) {
-            return -1;
-        }
-    }
-
-    if (order == this->bridged_dsu.getsz(v)) {
-        res.push_back(value);
-    }
-
-    int original_order = order;
-    bool good1 = true, good2 = true;
-
-    for (auto &p : dfs_tree_adj[v]) {
-        int u = p.v;
-        double w = p.weight;
-        if (u == par) continue;
-        // should guarantee no bridge
-        // if (bridge_opt_set && bridges.count({v, u})) continue;
-        int target = order + sz[u];
-        int d1 = tryAssignAll(u, val + w, res, order + 1, v);
-        if (d1 != target) { // prevent short circuit
-            good1 = false;
-            break;
-        }
-        order = target;
-    }
-
-    order = original_order;
-
-    for (auto &p : dfs_tree_adj[v]) {
-        int u = p.v;
-        double w = p.weight;
-        if (u == par) continue;
-        int target = order + sz[u];
-        int d2 = tryAssignAll(u, val - w, res, order + 1, v);
-        if (d2 != target) {
-            good2 = false;
-            break;
-        }
-        order = target;
-    }
-
-    if (!good1 && !good2) return -1;
-
-    return order;
-}
-
 vector<int> Solver::getOrder(OptimizationSetting opt) {
     vector<int> order(n + 1);
     iota(order.begin(), order.end(), 0);
@@ -497,7 +518,10 @@ int Solver::solve(ostream &out, OptimizationSetting opt, bool bridgesOpt, bool l
     //     return 0;
     // }
 
+    this->m_listAllSolutions = listAllSolutions;
+
     if (bridgesOpt) {
+        find_bridges();
         // purge all bridge edges
         vector<Edge> t_edges;
         for (auto edge : edges) {
@@ -522,15 +546,13 @@ int Solver::solve(ostream &out, OptimizationSetting opt, bool bridgesOpt, bool l
     vector<vector<unordered_map<int, double>>> all_res;
 
     for (int component : components) {
-        vector<unordered_map<int, double>> res;
-        this->value.clear();
-        cerr << "try: " << component << '\n';
-        tryAssignAll(component, 0, res);
-        if (res.empty()) {
+        // cerr << "try: " << component << '\n';
+        optional<vector<unordered_map<int, double>>> res = tryAssignAll(component, 0);
+        if (!res.has_value()) {
             cerr << "No solution found!\n";
             exit(1);
         }
-        all_res.push_back(res);
+        all_res.push_back(res.value());
     }
 
     outputCombinedResult(out, all_res);
@@ -549,19 +571,30 @@ int Solver::solve(ostream &out, OptimizationSetting opt, bool bridgesOpt, bool l
 
 void Solver::outputCombinedResult(ostream &out, const vector<vector<unordered_map<int, double>>> &all_res, int num_solutions) {
     // algorithm: pick one from each component, merge and scale
+
+    // cerr << all_res.size() << '\n';
+    // cerr << all_res[0].size() << '\n';
+
+    // for (int i = 0; i < all_res[0].size(); ++i) {
+    //     for (auto &p : all_res[0][i]) {
+    //         cerr << p.first << ' ' << p.second << '\n';
+    //     }
+    //     cerr << '\n';
+    // }
+
     vector<int> compMap(n + 1);
     for (int i = 1; i <= n; ++i) compMap[i] = bridged_dsu.find(i);
-    CombinedSolutionIterator iter(all_res, rules, compMap);
+    CombinedSolutionIterator iter(all_res, rules, compMap, m_listAllSolutions);
     int solCount = 0;
-    cerr << "here\n";
     while (iter.hasNext()) {
-        cerr << "OK\n";
         unordered_map<int, double> sol = iter.next();
-        cerr << "Combined solution " << ++solCount << ":\n";
+        out << "-------------------------\n";
+        out << "Solution " << ++solCount << ":\n";
         for (const auto &p : sol) {
-            cerr << "Vertex " << p.first << " -> " << p.second << "\n";
+            out << "Vertex " << p.first << " -> " << p.second << "\n";
         }
-        cerr << "-------------------------\n";
+        out << "-------------------------\n";
+        cerr << "Saved solution " << solCount << " to file.\n";
         if (solCount == num_solutions) return;
     }
 }
