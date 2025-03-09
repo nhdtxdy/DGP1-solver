@@ -1,0 +1,5 @@
+# DGP1 instance in AMPL .dat format
+# graph_comp2.dat
+param n := 1 ;
+param : E : c I :=
+;

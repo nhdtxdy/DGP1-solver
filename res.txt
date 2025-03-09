@@ -1,0 +1,16 @@
+Solutions found:
+
+Solution #1
+Vertex 1 - value 0
+Vertex 2 - value 1
+Vertex 3 - value 2
+Vertex 4 - value 3
+Vertex 5 - value 3
+
+Solution #2
+Vertex 1 - value 0
+Vertex 2 - value -1
+Vertex 3 - value -2
+Vertex 4 - value -3
+Vertex 5 - value -3
+
