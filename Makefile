@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -std=c++20 -O3
+CXXFLAGS = -Wall -Wextra -std=c++20 -Ofast
 
 # Executable names
 SOLVER = solver

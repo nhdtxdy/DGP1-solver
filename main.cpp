@@ -18,6 +18,12 @@ std::string trim(const std::string &s) {
 }
 
 int main(int argc, char *argv[]) {
+    // Intended to make I/O faster as we do not use C-style I/O here.
+    // But disabling sync_with_stdio is not thread-safe, so this needs
+    // to change if multithreading optimizations are applied in the future.
+    ios::sync_with_stdio(false);
+    cin.tie(0); cout.tie(0);
+
     if (argc < 2) {
         cerr << "Usage: " << argv[0] << " <input_filename> [output_filename] [optimizations] [--list-all-solutions]\n";
         return 1;
@@ -29,7 +35,9 @@ int main(int argc, char *argv[]) {
     
     OptimizationSetting opt = OPT_DEFAULT;
     bool bridgesOpt = false;
+    bool randomize = false;
     bool listAllSolutions = false;
+    bool knapsack = false;
     
     for (int i = 2; i < argc; i++) {
         string arg = argv[i];
@@ -59,6 +67,10 @@ int main(int argc, char *argv[]) {
                     opt = OPT_LOWEST_ORDER;
                 } else if (token == "bridges") {
                     bridgesOpt = true;
+                } else if (token == "randomize") {
+                    randomize = true;
+                } else if (token == "knapsack") {
+                    knapsack = true;
                 } else {
                     cerr << "Unknown optimization option in --optimizations: " << token << "\n";
                     return 1;
@@ -137,7 +149,7 @@ int main(int argc, char *argv[]) {
 
     file.close();
 
-    Solver solver(n, edges);
+    Solver solver(n, edges, opt, bridgesOpt, listAllSolutions, randomize, knapsack);
 
     if (outputFileSet) {
         ofstream outfile(outputFilename);
@@ -146,11 +158,11 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         
-        solver.solve(outfile, opt, bridgesOpt, listAllSolutions);
+        solver.solve(outfile);
         outfile.close();
     }
     else {
-        solver.solve(cout, opt, bridgesOpt, listAllSolutions);
+        solver.solve(cout);
     }
    
     return 0;

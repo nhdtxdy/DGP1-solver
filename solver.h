@@ -8,6 +8,10 @@
 #include <unordered_map>
 #include "dsu.h"
 #include <optional>
+#include <random>
+#include <bitset>
+#include <map>
+#include "config.h"
 
 using Rule = std::tuple<int, int, double>;
 
@@ -25,28 +29,44 @@ struct Edge {
 
 class Solver {
 public:
-    Solver(int n, const std::vector<Edge>& edges);
-    int solve(std::ostream &out, OptimizationSetting opt, bool bridgesOpt, bool listAllSolutions);
+    Solver(int n,
+           const std::vector<Edge>& edges,
+           OptimizationSetting opt,
+           bool bridgesOpt,
+           bool listAllSolutions,
+           bool randomize,
+           bool knapsack);
+    int solve(std::ostream &out);
 
 private:
+    std::mt19937 rng;
+    std::uniform_real_distribution<double> ran_gen;
+
+    int n, logn;
+
     DSU bridged_dsu;
 
     static constexpr double eps = 1e-6;
 
-    std::vector<std::vector<Adj>> adj, dfs_tree_adj, back_adj;
+    std::vector<std::vector<Adj>> adj, dfs_tree_adj, back_adj, forward_adj;
     std::vector<int> vis;
     std::set<std::pair<int, int>> bridges;
-    std::vector<Rule> rules;
+    std::vector<Rule> bridge_rules;
+    std::vector<std::vector<Rule>> cycle_rules;
     std::vector<Edge> edges;
-    std::vector<int> tin, low, dist, sz;
+    std::vector<int> tin, low, dist, sz, parent, dep;
 
-    std::unordered_map<int, double> value;
+    std::vector<double> value;
 
 
     int timer = 0;
-    int n;
+
+    OptimizationSetting opt;
     
-    bool bridge_opt_set, m_listAllSolutions;
+    bool bridgesOpt, m_listAllSolutions, m_randomize, m_knapsack;
+
+    std::vector<std::vector<std::bitset<WINDOW>>> knapsack;
+    std::vector<std::vector<int>> binlift;
 
     void bfs(int v);
     void dfs(int v, int par);
@@ -59,6 +79,10 @@ private:
     void dfs_bridges(int v, int par = -1);
     void find_bridges();
     void outputCombinedResult(std::ostream &out, const std::vector<std::vector<std::unordered_map<int, double>>> &all_res, int num_solutions = -1);
+    void saveDFSTree();
+    void get_knapsack(int v, int w_par, int par = -1);
+    bool can_knapsack(int u, int v, int w);
+    bool verify_solution(const std::map<int, double> &sol);
 };
 
 #endif // SOLVER_H
