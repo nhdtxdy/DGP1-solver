@@ -54,7 +54,7 @@ private:
     std::vector<Rule> bridge_rules;
     std::vector<std::vector<Rule>> cycle_rules;
     std::vector<Edge> edges;
-    std::vector<int> tin, low, dist, sz, parent, dep;
+    std::vector<int> tin, low, dist, sz, parent, dep, in_cycles;
 
     std::vector<double> value;
 

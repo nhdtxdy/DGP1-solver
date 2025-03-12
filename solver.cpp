@@ -377,6 +377,7 @@ Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting opt, bool b
     parent.resize(n + 1);
     cycle_rules.resize(n + 1);
     dep.resize(n + 1, 0);
+    in_cycles.resize(n + 1, 0);
 
     this->knapsack.resize(n + 1);
     this->binlift.resize(n + 1);
@@ -457,10 +458,14 @@ void Solver::dfs(int v, int par = -1) {
 
             if (m_knapsack) {
                 int curr = parent[v];
+                int dist = 1;
                 while (true) {
-                    cycle_rules[curr].push_back({u, v, w});
+                    if (dist > MIN_LOOKAHEAD_DEPTH) {
+                        cycle_rules[curr].push_back({u, v, w});
+                    }
                     if (curr == u) break;
                     curr = parent[curr];
+                    ++dist;
                 }
             }
 
