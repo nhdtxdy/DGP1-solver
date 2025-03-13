@@ -35,7 +35,8 @@ public:
            bool bridgesOpt,
            bool listAllSolutions,
            bool randomize,
-           bool knapsack);
+           bool knapsack,
+           bool triangleInequality);
     int solve(std::ostream &out);
 
 private:
@@ -63,10 +64,11 @@ private:
 
     OptimizationSetting opt;
     
-    bool bridgesOpt, m_listAllSolutions, m_randomize, m_knapsack;
+    bool bridgesOpt, m_listAllSolutions, m_randomize, m_knapsack, m_triangleInequality;
 
     std::vector<std::vector<std::bitset<WINDOW>>> knapsack;
     std::vector<std::vector<int>> binlift;
+    std::vector<std::vector<double>> path_sum, max_w;
 
     void bfs(int v);
     void dfs(int v, int par);
@@ -83,6 +85,7 @@ private:
     void get_knapsack(int v, int w_par, int par = -1);
     bool can_knapsack(int u, int v, int w);
     bool verify_solution(const std::map<int, double> &sol);
+    void calculate_sum_pathw(int v, int par = -1, double w = 0);
 };
 
 #endif // SOLVER_H

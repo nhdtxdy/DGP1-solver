@@ -61,6 +61,12 @@ bool Solver::can_knapsack(int u, int v, int value) {
 }
 
 optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double val, int par) {
+    static int lowest_infeasible_cycle = -1;
+
+    if (dep[v] <= lowest_infeasible_cycle) {
+        return nullopt;
+    }
+
     if (m_knapsack && (val > M_LIMIT || val < -M_LIMIT)) return nullopt;
     value[v] = val;
 
@@ -69,6 +75,7 @@ optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double 
         int u = p.v;
         double w = p.weight;
         if (fabs(fabs(value[v] - value[u]) - w) > eps) {
+            lowest_infeasible_cycle = dep[u];
             return nullopt;
         }
     }
@@ -129,8 +136,11 @@ optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double 
             return nullopt;
         }
 
+        lowest_infeasible_cycle = -1;
+
         merge(merged, to_merge);
     }
+
 
     return merged;
 }
@@ -345,7 +355,7 @@ int Solver::buildAdjFromEdges() {
     return dsu.num_ccs();
 }
 
-Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting opt, bool bridgesOpt, bool listAllSolutions, bool randomize, bool knapsack) :
+Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting opt, bool bridgesOpt, bool listAllSolutions, bool randomize, bool knapsack, bool triangleInequality) :
             rng(random_device{}()), 
             ran_gen(0.0, 1.0),
             n(n),
@@ -354,7 +364,8 @@ Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting opt, bool b
             bridgesOpt(bridgesOpt),
             m_listAllSolutions(listAllSolutions),
             m_randomize(randomize),
-            m_knapsack(knapsack)
+            m_knapsack(knapsack),
+            m_triangleInequality(triangleInequality)
 {
     cerr << "DGP1 Solver initialized with optimizations: ";
     cerr << (knapsack ? "knapsack, " : "");
@@ -381,6 +392,8 @@ Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting opt, bool b
 
     this->knapsack.resize(n + 1);
     this->binlift.resize(n + 1);
+    this->path_sum.resize(n + 1);
+    this->max_w.resize(n + 1);
 
     this->logn = 31;
     for (int i = 30; i >= 0; --i) {
@@ -392,6 +405,8 @@ Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting opt, bool b
     for (int i = 1; i <= n; ++i) {
         this->knapsack[i].resize(logn + 1);
         this->binlift[i].resize(logn + 1, -1);
+        this->path_sum[i].resize(logn + 1, 0);
+        this->max_w[i].resize(logn + 1, 0);
     }
 
     if (buildAdjFromEdges() != 1) {
@@ -524,6 +539,26 @@ void Solver::getsz(int v, int par = -1) {
     sz[v]++;
 }
 
+void Solver::calculate_sum_pathw(int v, int par, double w) {
+    if (par != -1) {
+        path_sum[v][0] = w;
+        max_w[v][0] = w;
+    }
+    for (int i = 1; i <= logn; ++i) {
+        int mid = binlift[v][i - 1];
+        if (mid != -1) {
+            path_sum[v][i] = path_sum[v][i - 1] + path_sum[mid][i - 1];
+            max_w[v][i] = max(max_w[v][i - 1], max_w[mid][i - 1]);
+        }
+    }
+    for (const auto &p : dfs_tree_adj[v]) {
+        int u = p.v;
+        double w = p.weight;
+        if (u == par) continue;
+        calculate_sum_pathw(u, v, w);
+    }
+}
+
 vector<int> Solver::buildDfsTree(const vector<int> &idx) {
     vector<int> res;
     vis.assign(n + 1, false);
@@ -539,6 +574,9 @@ vector<int> Solver::buildDfsTree(const vector<int> &idx) {
                 auto end_bs_count = std::chrono::high_resolution_clock::now();
                 auto time_bs_count = std::chrono::duration_cast<std::chrono::milliseconds>(end_bs_count - start_bs_count).count();
                 cerr << "Get knapsack done in " << time_bs_count << " milliseconds.\n";
+            }
+            if (m_triangleInequality) {
+                calculate_sum_pathw(idx[i]);
             }
         }
     }
@@ -576,6 +614,19 @@ vector<int> Solver::getOrder(OptimizationSetting opt) {
 }
 
 int Solver::solve(ostream &out) {
+    auto get_maxw_sum_path = [&] (int u, int v) {
+        pair<double, double> res = {0, 0};
+        if (dep[u] > dep[v]) swap(u, v);
+        // u is ancestor of v
+        for (int i = logn; i >= 0; --i) {
+            if (binlift[v][i] != -1 && dep[binlift[v][i]] >= dep[u]) {
+                res.first += path_sum[v][i];
+                res.second = max(res.second, max_w[v][i]);
+                v = binlift[v][i];
+            }
+        }
+        return res;
+    };
     auto start_bs_count = chrono::high_resolution_clock::now();
 
     if (bridgesOpt) {
@@ -597,6 +648,33 @@ int Solver::solve(ostream &out) {
     vector<int> components = buildDfsTree(idx);
 
     saveDFSTree();
+
+    for (int i = 1; i <= n; ++i) {
+        sort(back_adj[i].begin(), back_adj[i].end(), [&] (const Adj &A, const Adj &B) {
+            return dep[A.v] > dep[B.v];
+        });
+    }
+
+    if (m_triangleInequality) {
+        for (int i = 1; i <= n; ++i) {
+            for (const auto &p : back_adj[i]) {
+                int j = p.v;
+                double w = p.weight;
+                const pair<double, double> &pp = get_maxw_sum_path(j, i);
+
+                double mw = pp.second;
+                double sum = pp.first;
+
+                sum += w;
+                mw = max(mw, w);
+
+                if ((2 * mw - sum) > eps) {
+                    cerr << "[Triangle inequality] No solution found!\n";
+                    return 1;
+                }
+            }
+        }
+    }
 
     vector<vector<unordered_map<int, double>>> all_res;
 

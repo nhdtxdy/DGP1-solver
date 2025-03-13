@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
     bool randomize = false;
     bool listAllSolutions = false;
     bool knapsack = false;
+    bool triangleInequality = false;
     
     for (int i = 2; i < argc; i++) {
         string arg = argv[i];
@@ -71,6 +72,8 @@ int main(int argc, char *argv[]) {
                     randomize = true;
                 } else if (token == "knapsack") {
                     knapsack = true;
+                } else if (token == "triangle") {
+                    triangleInequality = true;
                 } else {
                     cerr << "Unknown optimization option in --optimizations: " << token << "\n";
                     return 1;
@@ -149,7 +152,7 @@ int main(int argc, char *argv[]) {
 
     file.close();
 
-    Solver solver(n, edges, opt, bridgesOpt, listAllSolutions, randomize, knapsack);
+    Solver solver(n, edges, opt, bridgesOpt, listAllSolutions, randomize, knapsack, triangleInequality);
 
     if (outputFileSet) {
         ofstream outfile(outputFilename);
