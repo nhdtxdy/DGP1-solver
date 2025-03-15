@@ -9,11 +9,11 @@
 using namespace std;
 
 // merge assignments from two branches
-void merge(vector<unordered_map<int, double>> &base, vector<unordered_map<int, double>> to_merge) {
-    vector<unordered_map<int, double>> merged;
-    for (const unordered_map<int, double>& b : base) {
-        for (const unordered_map<int, double> &tm : to_merge) {
-            unordered_map<int, double> cpy = b;
+void merge(vector<unordered_map<int, WeightType>> &base, vector<unordered_map<int, WeightType>> to_merge) {
+    vector<unordered_map<int, WeightType>> merged;
+    for (const unordered_map<int, WeightType>& b : base) {
+        for (const unordered_map<int, WeightType> &tm : to_merge) {
+            unordered_map<int, WeightType> cpy = b;
             cpy.insert(tm.begin(), tm.end());
             merged.push_back(cpy);
         }
@@ -60,7 +60,7 @@ bool Solver::can_knapsack(int u, int v, int value) {
     return bset[value + OFFSET];
 }
 
-optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double val, int par) {
+optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, WeightType val, int par) {
     static int lowest_infeasible_cycle = -1;
 
     if (dep[v] <= lowest_infeasible_cycle) {
@@ -73,7 +73,7 @@ optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double 
     // detect invalid cycle through back edges
     for (auto &p : back_adj[v]) {
         int u = p.v;
-        double w = p.weight;
+        WeightType w = p.weight;
         if (fabs(fabs(value[v] - value[u]) - w) > eps) {
             lowest_infeasible_cycle = dep[u];
             return nullopt;
@@ -83,7 +83,7 @@ optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double 
     if (m_knapsack) {
         for (const Rule &rule : cycle_rules[v]) {
             int x, y;
-            double w_;
+            WeightType w_;
             tie(x, y, w_) = rule;
             int w = (int)w_;
 
@@ -97,14 +97,14 @@ optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double 
         }
     }
 
-    vector<unordered_map<int, double>> merged;
-    unordered_map<int, double> single_map;
+    vector<unordered_map<int, WeightType>> merged;
+    unordered_map<int, WeightType> single_map;
     single_map[v] = val;
     merged.push_back(single_map);
 
     for (auto &p : dfs_tree_adj[v]) {
         int u = p.v;
-        double w = p.weight;
+        WeightType w = p.weight;
         if (u == par) continue;
 
         // 50% chance to flip the sign of w
@@ -116,7 +116,7 @@ optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double 
 
         // TO STUDY: TRAVERSAL ORDER HEURISTICS (BIG CHILD IN SMALL-TO-LARGE TECHNIQUE?)
 
-        vector<unordered_map<int, double>> to_merge;
+        vector<unordered_map<int, WeightType>> to_merge;
 
         auto d1 = tryAssignAll(u, val + w, v);
         if (d1.has_value()) {
@@ -127,7 +127,7 @@ optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double 
         if (this->m_listAllSolutions || to_merge.empty()) {
             const auto &d2 = tryAssignAll(u, val - w, v);
             if (d2.has_value()) {
-                const vector<unordered_map<int, double>> &d2_value = d2.value();
+                const vector<unordered_map<int, WeightType>> &d2_value = d2.value();
                 to_merge.insert(to_merge.end(), d2_value.begin(), d2_value.end());
             }
         }
@@ -146,25 +146,25 @@ optional<vector<unordered_map<int, double>>> Solver::tryAssignAll(int v, double 
 }
 
 // DFS helper for computing translations (in case of bridges optimization)
-vector<unordered_map<int, double>> dfsTranslations(int v,
-                    double val,
+vector<unordered_map<int, WeightType>> dfsTranslations(int v,
+                    WeightType val,
                     int par,
-                    const vector<vector<tuple<int, double, double>>>& compAdj,
+                    const vector<vector<tuple<int, WeightType, WeightType>>>& compAdj,
                     bool listAllSolutions)
 {
-    vector<unordered_map<int, double>> merged;
-    unordered_map<int, double> single_map;
+    vector<unordered_map<int, WeightType>> merged;
+    unordered_map<int, WeightType> single_map;
     single_map[v] = val;
     merged.push_back(single_map);
 
     for (auto &p : compAdj[v]) {
         int u;
-        double w;
-        double cur_dist;
+        WeightType w;
+        WeightType cur_dist;
         tie(u, w, cur_dist) = p;
         if (u == par) continue;
 
-        vector<unordered_map<int, double>> to_merge;
+        vector<unordered_map<int, WeightType>> to_merge;
 
         // v -> u: cur_dist, want w
         auto d1_value = dfsTranslations(u, val + (w - cur_dist), v, compAdj, listAllSolutions);
@@ -193,12 +193,12 @@ class CombinedSolutionIterator {
 public:
     // Constructor:
     //   all_res: for each (re-indexed) component, a vector of candidate solutions.
-    //            Each candidate solution is an unordered_map<int,double> (vertex -> base value).
+    //            Each candidate solution is an unordered_map<int,WeightType> (vertex -> base value).
     //   rules: a vector of rules; each rule is a tuple {u, v, w}.
     //   compMap: mapping from vertex to its DSU representative (1-indexed, not necessarily contiguous).
     //            (Note: all_res is assumed to be ordered by these re-indexed components.)
     CombinedSolutionIterator(
-        const vector<vector<unordered_map<int, double>>>& all_res,
+        const vector<vector<unordered_map<int, WeightType>>>& all_res,
         const vector<Rule>& rules,
         const vector<int>& compMap,
         bool listAllSolutions)
@@ -231,29 +231,29 @@ public:
     }
     
     // Returns the next combined (scaled) solution.
-    unordered_map<int, double> next() {
+    unordered_map<int, WeightType> next() {
         if (buffer.empty()) {
             advanceBuffer();
         }
-        unordered_map<int, double> sol = buffer.front();
+        unordered_map<int, WeightType> sol = buffer.front();
         buffer.erase(buffer.begin());
         return sol;
     }
     
 private:
-    const vector<vector<unordered_map<int, double>>>& all_res;
-    const vector<tuple<int, int, double>>& rules;
+    const vector<vector<unordered_map<int, WeightType>>>& all_res;
+    const vector<tuple<int, int, WeightType>>& rules;
     const vector<int>& compMap;  // DSU representative for each vertex (1-indexed).
     vector<int> indices;         // current candidate index for each component.
     bool has_next, m_listAllSolutions;
-    vector<unordered_map<int, double>> buffer;  // buffer holding scaled solutions for current merged candidate.
+    vector<unordered_map<int, WeightType>> buffer;  // buffer holding scaled solutions for current merged candidate.
     
     set<int> compSet;
     unordered_map<int, int> repToIndex;
 
     // Merge candidate solutions from each component according to current indices.
-    unordered_map<int, double> mergeCurrentCandidate() {
-        unordered_map<int, double> merged;
+    unordered_map<int, WeightType> mergeCurrentCandidate() {
+        unordered_map<int, WeightType> merged;
         for (size_t i = 0; i < all_res.size(); i++) {
             const auto &sol = all_res[i][indices[i]];
             for (const auto &p : sol) {
@@ -285,16 +285,16 @@ private:
     //    T[comp(u)'] - T[comp(v)'] = ± (w - (merged[u] - merged[v])),
     // where comp(u)' is the re-indexed component.
     // Since compMap is not necessarily 0-indexed, we first re-index.
-    vector<unordered_map<int, double>> scaleAllTranslations(const unordered_map<int, double>& merged) {
+    vector<unordered_map<int, WeightType>> scaleAllTranslations(const unordered_map<int, WeightType>& merged) {
         int k = repToIndex.size();
 
         // Build the component adjacency list.
-        vector<vector<tuple<int, double, double>>> compAdj(k);
+        vector<vector<tuple<int, WeightType, WeightType>>> compAdj(k);
 
         // For each rule, if both vertices appear in merged, add an edge.
         for (const auto &r : rules) {
             int u, v;
-            double w;
+            WeightType w;
             tie(u, v, w) = r;
             int rep_u = compMap[u];
             int rep_v = compMap[v];
@@ -319,12 +319,12 @@ private:
     void advanceBuffer() {
         if (!has_next) return;
 
-        unordered_map<int, double> merged = mergeCurrentCandidate();
-        vector<unordered_map<int, double>> translations = scaleAllTranslations(merged);
+        unordered_map<int, WeightType> merged = mergeCurrentCandidate();
+        vector<unordered_map<int, WeightType>> translations = scaleAllTranslations(merged);
 
         // For each translation vector, compute the scaled solution.
         for (const auto &T : translations) {
-          unordered_map<int, double> scaled;
+          unordered_map<int, WeightType> scaled;
           for (const auto &p : merged) {
                 int u = p.first;
                 // Look up DSU rep for u.
@@ -346,7 +346,7 @@ int Solver::buildAdjFromEdges() {
 
     for (const Edge &edge: edges) {
         int u = edge.u, v = edge.v;
-        double w = edge.weight;
+        WeightType w = edge.weight;
         adj[u].push_back({v, w});
         adj[v].push_back({u, w});
         dsu.unite(u, v);
@@ -435,7 +435,7 @@ void Solver::dfs_bridges(int v, int par) {
     low[v] = tin[v];
     for (auto &p : adj[v]) {
         int u = p.v;
-        double w = p.weight;
+        WeightType w = p.weight;
         if (u == par) continue;
         if (vis[u] == 1) {
             low[v] = min(low[v], tin[u]);
@@ -466,7 +466,7 @@ void Solver::dfs(int v, int par = -1) {
     
     for (auto &p : adj[v]) {
         int u = p.v;
-        double w = p.weight;
+        WeightType w = p.weight;
         if (u == par) continue;
         if (vis[u] == 1) {
             back_adj[v].push_back({u, w});
@@ -540,7 +540,7 @@ void Solver::getsz(int v, int par = -1) {
     sz[v]++;
 }
 
-void Solver::calculate_sum_pathw(int v, int par, double w) {
+void Solver::calculate_sum_pathw(int v, int par, WeightType w) {
     if (par != -1) {
         path_sum[v][0] = w;
         max_w[v][0] = w;
@@ -554,7 +554,7 @@ void Solver::calculate_sum_pathw(int v, int par, double w) {
     }
     for (const auto &p : dfs_tree_adj[v]) {
         int u = p.v;
-        double w = p.weight;
+        WeightType w = p.weight;
         if (u == par) continue;
         calculate_sum_pathw(u, v, w);
     }
@@ -602,7 +602,7 @@ unordered_set<int> Solver::buildDfsTree(const vector<int> &idx) {
 
 int Solver::solve(ostream &out) {
     auto get_maxw_sum_path = [&] (int u, int v) {
-        pair<double, double> res = {0, 0};
+        pair<WeightType, WeightType> res = {0, 0};
         if (dep[u] > dep[v]) swap(u, v);
         // u is ancestor of v
         for (int i = logn; i >= 0; --i) {
@@ -727,11 +727,11 @@ int Solver::solve(ostream &out) {
         for (int i = 1; i <= n; ++i) {
             for (const auto &p : back_adj[i]) {
                 int j = p.v;
-                double w = p.weight;
-                const pair<double, double> &pp = get_maxw_sum_path(j, i);
+                WeightType w = p.weight;
+                const pair<WeightType, WeightType> &pp = get_maxw_sum_path(j, i);
 
-                double mw = pp.second;
-                double sum = pp.first;
+                WeightType mw = pp.second;
+                WeightType sum = pp.first;
 
                 sum += w;
                 mw = max(mw, w);
@@ -744,10 +744,10 @@ int Solver::solve(ostream &out) {
         }
     }
 
-    vector<vector<unordered_map<int, double>>> all_res;
+    vector<vector<unordered_map<int, WeightType>>> all_res;
 
     for (int component : components) {
-        optional<vector<unordered_map<int, double>>> res = tryAssignAll(component, 0);
+        optional<vector<unordered_map<int, WeightType>>> res = tryAssignAll(component, 0);
         if (!res.has_value()) {
             cerr << "No solution found!\n";
             return 1;
@@ -794,16 +794,16 @@ void Solver::saveDFSTree() {
     cerr << "DFS Tree and Back Edges saved to log.txt\n";
 }
 
-bool Solver::verify_solution(const map<int, double> &sol) {
+bool Solver::verify_solution(const map<int, WeightType> &sol) {
     for (const auto &edge : edges) {
         int u = edge.u, v = edge.v;
-        double w = edge.weight;
+        WeightType w = edge.weight;
         if (fabs(fabs(sol.at(u) - sol.at(v)) - w) > eps) return false;
     }
     return true;
 }
 
-void Solver::outputCombinedResult(ostream &out, const vector<vector<unordered_map<int, double>>> &all_res, int num_solutions) {
+void Solver::outputCombinedResult(ostream &out, const vector<vector<unordered_map<int, WeightType>>> &all_res, int num_solutions) {
     // algorithm: pick one from each component, merge and scale
 
     vector<int> compMap(n + 1);
@@ -811,8 +811,8 @@ void Solver::outputCombinedResult(ostream &out, const vector<vector<unordered_ma
     CombinedSolutionIterator iter(all_res, bridge_rules, compMap, m_listAllSolutions);
     int solCount = 0;
     while (iter.hasNext()) {
-        unordered_map<int, double> sol = iter.next();
-        map<int, double> sorted_sol(sol.begin(), sol.end());
+        unordered_map<int, WeightType> sol = iter.next();
+        map<int, WeightType> sorted_sol(sol.begin(), sol.end());
 
         cerr << "Verifying solution...\n";
         if (!verify_solution(sorted_sol)) {
@@ -832,14 +832,14 @@ void Solver::outputCombinedResult(ostream &out, const vector<vector<unordered_ma
     }
 }
 
-// bool Solver::tryAssign(int v, double val = 0) {
+// bool Solver::tryAssign(int v, WeightType val = 0) {
 //     // cerr << "Visit " << v << ' ' << val << '\n';
 //     vis[v] = true;
 //     value[v] = val;
 //     bool ok = true;
 //     for (auto &p : adj[v]) {
 //         int u = p.v;
-//         double w = p.weight;
+//         WeightType w = p.weight;
 //         if (vis[u] && fabs(fabs(value[v] - value[u]) - w) > eps) {
 //             ok = false;
 //             break;

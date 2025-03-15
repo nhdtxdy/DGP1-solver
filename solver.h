@@ -14,18 +14,18 @@
 #include <map>
 #include "config.h"
 
-using Rule = std::tuple<int, int, double>;
+using Rule = std::tuple<int, int, WeightType>;
 
 enum OptimizationSetting { OPT_DEFAULT, OPT_HIGHEST_ORDER, OPT_HIGHEST_CYCLE };
 
 struct Adj {
     int v;
-    double weight;
+    WeightType weight;
 };
 
 struct Edge {
     int u, v;
-    double weight;
+    WeightType weight;
 };
 
 class Solver {
@@ -49,8 +49,6 @@ private:
 
     DSU bridged_dsu;
 
-    static constexpr double eps = 1e-6;
-
     std::vector<std::vector<Adj>> adj, dfs_tree_adj, back_adj, forward_adj;
     std::vector<int> vis;
     std::set<std::pair<int, int>> bridges;
@@ -59,7 +57,7 @@ private:
     std::vector<Edge> edges;
     std::vector<int> tin, low, dist, sz, parent, dep, in_cycles;
 
-    std::vector<double> value;
+    std::vector<WeightType> value;
 
     int timer = 0;
 
@@ -69,23 +67,23 @@ private:
 
     std::vector<std::vector<std::bitset<WINDOW>>> knapsack;
     std::vector<std::vector<int>> binlift;
-    std::vector<std::vector<double>> path_sum, max_w;
+    std::vector<std::vector<WeightType>> path_sum, max_w;
 
     void bfs(int v);
     void dfs(int v, int par);
     void getsz(int v, int par);
     std::unordered_set<int> buildDfsTree(const std::vector<int> &idx);
-    bool tryAssign(int v, double val);
-    std::optional<std::vector<std::unordered_map<int, double>>> tryAssignAll(int v, double val, int par = -1);
+    bool tryAssign(int v, WeightType val);
+    std::optional<std::vector<std::unordered_map<int, WeightType>>> tryAssignAll(int v, WeightType val, int par = -1);
     int buildAdjFromEdges();
     void dfs_bridges(int v, int par = -1);
     void find_bridges();
-    void outputCombinedResult(std::ostream &out, const std::vector<std::vector<std::unordered_map<int, double>>> &all_res, int num_solutions = -1);
+    void outputCombinedResult(std::ostream &out, const std::vector<std::vector<std::unordered_map<int, WeightType>>> &all_res, int num_solutions = -1);
     void saveDFSTree();
     void get_knapsack(int v, int w_par, int par = -1);
     bool can_knapsack(int u, int v, int w);
-    bool verify_solution(const std::map<int, double> &sol);
-    void calculate_sum_pathw(int v, int par = -1, double w = 0);
+    bool verify_solution(const std::map<int, WeightType> &sol);
+    void calculate_sum_pathw(int v, int par = -1, WeightType w = 0);
 };
 
 #endif // SOLVER_H

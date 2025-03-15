@@ -29,6 +29,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    #ifdef USE_INTEGER_WEIGHTS
+        cerr << "[WARNING] DGP1 solver is compiled with ONLY integer weights support.\n";
+    #endif
+
     string inputFilename = argv[1];
     bool outputFileSet = false;
     string outputFilename;
@@ -148,7 +152,7 @@ int main(int argc, char *argv[]) {
 
                         istringstream edgeStream(line);
                         int u, v, I;
-                        double c;
+                        WeightType c;
                         if (edgeStream >> u >> v >> c >> I) {
                             if (!checkValidVertex(u) || !checkValidVertex(v)) {
                                 cerr << "Error on line " << lineno << ": invalid vertex!\n";
