@@ -152,13 +152,13 @@ int main(int argc, char *argv[]) {
 
                         istringstream edgeStream(line);
                         int u, v, I;
-                        WeightType c;
+                        double c;
                         if (edgeStream >> u >> v >> c >> I) {
                             if (!checkValidVertex(u) || !checkValidVertex(v)) {
                                 cerr << "Error on line " << lineno << ": invalid vertex!\n";
                                 return 0;
                             }
-                            edges.push_back({u, v, c});
+                            edges.push_back({u, v, (WeightType)c});
                         }
                     }
                 }

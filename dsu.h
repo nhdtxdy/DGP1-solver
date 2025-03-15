@@ -1,6 +1,7 @@
-#include <vector>
 #ifndef DSU_H
 #define DSU_H
+
+#include <vector>
 
 class DSU {
 public:
