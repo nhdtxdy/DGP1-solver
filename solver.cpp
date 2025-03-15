@@ -198,46 +198,46 @@ public:
     //   compMap: mapping from vertex to its DSU representative (1-indexed, not necessarily contiguous).
     //            (Note: all_res is assumed to be ordered by these re-indexed components.)
     CombinedSolutionIterator(
-         const vector<vector<unordered_map<int, double>>>& all_res,
-         const vector<Rule>& rules,
-         const vector<int>& compMap,
-         bool listAllSolutions)
-         : all_res(all_res), rules(rules), compMap(compMap), has_next(true), m_listAllSolutions(listAllSolutions)
+        const vector<vector<unordered_map<int, double>>>& all_res,
+        const vector<Rule>& rules,
+        const vector<int>& compMap,
+        bool listAllSolutions)
+        : all_res(all_res), rules(rules), compMap(compMap), has_next(true), m_listAllSolutions(listAllSolutions)
     {
-         int numComponents = all_res.size();
-         indices.resize(numComponents, 0);
-         for (int i = 0; i < numComponents; i++) {
-             if (all_res[i].empty()) {
-                has_next = false;
-                break;
-             }
-         }
-         int n = compMap.size() - 1;
-         for (int i = 1; i <= n; ++i) {
-            int rep = compMap[i];
-            compSet.insert(rep);
-         }
-         // Map each DSU rep to a contiguous index.
-         int idx = 0;
-         for (int rep : compSet) {
-             repToIndex[rep] = idx++;
-         }
-         advanceBuffer(); // Preload buffer from the first merged candidate.
+        int numComponents = all_res.size();
+        indices.resize(numComponents, 0);
+        for (int i = 0; i < numComponents; i++) {
+            if (all_res[i].empty()) {
+            has_next = false;
+            break;
+            }
+        }
+        int n = compMap.size() - 1;
+        for (int i = 1; i <= n; ++i) {
+        int rep = compMap[i];
+        compSet.insert(rep);
+        }
+        // Map each DSU rep to a contiguous index.
+        int idx = 0;
+        for (int rep : compSet) {
+            repToIndex[rep] = idx++;
+        }
+        advanceBuffer(); // Preload buffer from the first merged candidate.
     }
     
     // Returns true if there is another combined (scaled) solution.
     bool hasNext() const {
-         return (!buffer.empty() || has_next);
+        return (!buffer.empty() || has_next);
     }
     
     // Returns the next combined (scaled) solution.
     unordered_map<int, double> next() {
-         if (buffer.empty()) {
-             advanceBuffer();
-         }
-         unordered_map<int, double> sol = buffer.front();
-         buffer.erase(buffer.begin());
-         return sol;
+        if (buffer.empty()) {
+            advanceBuffer();
+        }
+        unordered_map<int, double> sol = buffer.front();
+        buffer.erase(buffer.begin());
+        return sol;
     }
     
 private:
@@ -253,30 +253,30 @@ private:
 
     // Merge candidate solutions from each component according to current indices.
     unordered_map<int, double> mergeCurrentCandidate() {
-         unordered_map<int, double> merged;
-         for (size_t i = 0; i < all_res.size(); i++) {
-              const auto &sol = all_res[i][indices[i]];
-              for (const auto &p : sol) {
-                  // Candidate solutions from different components are guaranteed to use disjoint vertex sets.
-                  merged[p.first] = p.second;
-              }
-         }
-         return merged;
+        unordered_map<int, double> merged;
+        for (size_t i = 0; i < all_res.size(); i++) {
+            const auto &sol = all_res[i][indices[i]];
+            for (const auto &p : sol) {
+                // Candidate solutions from different components are guaranteed to use disjoint vertex sets.
+                merged[p.first] = p.second;
+            }
+        }
+        return merged;
     }
     
     // Advance the multi-digit indices.
     void advanceIndices() {
-         for (int i = all_res.size() - 1; i >= 0; i--) {
-             indices[i]++;
-             if (indices[i] < (int)all_res[i].size()) {
-                  break; // no carry needed.
-             } else {
-                  indices[i] = 0;
-                  if (i == 0) {
-                      has_next = false;
-                  }
-             }
-         }
+        for (int i = all_res.size() - 1; i >= 0; i--) {
+            indices[i]++;
+            if (indices[i] < (int)all_res[i].size()) {
+                break; // no carry needed.
+            } else {
+                indices[i] = 0;
+                if (i == 0) {
+                    has_next = false;
+                }
+            }
+        }
     }
     
     // Given a merged solution, we want to find all translation vectors T (one per component)
@@ -293,21 +293,21 @@ private:
 
         // For each rule, if both vertices appear in merged, add an edge.
         for (const auto &r : rules) {
-          int u, v;
-          double w;
-          tie(u, v, w) = r;
-          int rep_u = compMap[u];
-          int rep_v = compMap[v];
-          // Get re-indexed component indices.
-          int cu = repToIndex[rep_u];
-          int cv = repToIndex[rep_v];
-          int cur_dist = merged.at(v) - merged.at(u);
+            int u, v;
+            double w;
+            tie(u, v, w) = r;
+            int rep_u = compMap[u];
+            int rep_v = compMap[v];
+            // Get re-indexed component indices.
+            int cu = repToIndex[rep_u];
+            int cv = repToIndex[rep_v];
+            int cur_dist = merged.at(v) - merged.at(u);
 
-          // u -> v
-          compAdj[cu].push_back({cv, w, cur_dist});
+            // u -> v
+            compAdj[cu].push_back({cv, w, cur_dist});
 
-          // v -> u
-          compAdj[cv].push_back({cu, w, -cur_dist});
+            // v -> u
+            compAdj[cv].push_back({cu, w, -cur_dist});
         }
 
         int base = repToIndex[*compSet.begin()];
@@ -326,11 +326,11 @@ private:
         for (const auto &T : translations) {
           unordered_map<int, double> scaled;
           for (const auto &p : merged) {
-              int u = p.first;
-              // Look up DSU rep for u.
-              int rep = compMap[u];
-              int compIdx = repToIndex[rep];
-              scaled[u] = p.second + T.at(compIdx);
+                int u = p.first;
+                // Look up DSU rep for u.
+                int rep = compMap[u];
+                int compIdx = repToIndex[rep];
+                scaled[u] = p.second + T.at(compIdx);
           }
           buffer.push_back(scaled);
         }
@@ -355,12 +355,13 @@ int Solver::buildAdjFromEdges() {
     return dsu.num_ccs();
 }
 
-Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting opt, bool bridgesOpt, bool listAllSolutions, bool randomize, bool knapsack, bool triangleInequality) :
+Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting rootSelection, OptimizationSetting neighborSelection, bool bridgesOpt, bool listAllSolutions, bool randomize, bool knapsack, bool triangleInequality) :
             rng(random_device{}()), 
             ran_gen(0.0, 1.0),
             n(n),
             edges(edges),
-            opt(opt),
+            m_rootSelection{rootSelection},
+            m_neighborSelection{neighborSelection},
             bridgesOpt(bridgesOpt),
             m_listAllSolutions(listAllSolutions),
             m_randomize(randomize),
@@ -371,7 +372,6 @@ Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting opt, bool b
     cerr << (knapsack ? "knapsack, " : "");
     cerr << (randomize ? "randomize, " : "");
     cerr << (bridgesOpt ? "bridges, " : "");
-    cerr << ((opt == OPT_HIGHEST_ORDER) ? "prioritize-high-degree-vertices, " : ((opt == OPT_LOWEST_ORDER) ? "prioritize-low-degree-vertices, " : ""));
     cerr << "\n---------------------------\n";
     cerr << "List all solutions is " << ((listAllSolutions) ? "enabled" : "disabled") << ".\n";
     cerr << "---------------------------\n";
@@ -530,6 +530,7 @@ void Solver::getsz(int v, int par = -1) {
     if (par != -1) {
         dep[v] = dep[par] + 1;
     }
+
     for (auto &p : dfs_tree_adj[v]) {
         int u = p.v;
         if (u == par) continue;
@@ -559,12 +560,19 @@ void Solver::calculate_sum_pathw(int v, int par, double w) {
     }
 }
 
-vector<int> Solver::buildDfsTree(const vector<int> &idx) {
-    vector<int> res;
+unordered_set<int> Solver::buildDfsTree(const vector<int> &idx) {
+    unordered_set<int> res;
     vis.assign(n + 1, false);
     for (int i = 1; i <= n; ++i) {
+        back_adj[i].clear();
+        dfs_tree_adj[i].clear();
+        sz[i] = 0;
+        dep[i] = 0;
+    }
+
+    for (int i = 1; i <= n; ++i) {
         if (!vis[idx[i]]) {
-            res.push_back(idx[i]);
+            res.insert(idx[i]);
             dfs(idx[i]);
             getsz(idx[i]);
             if (m_knapsack) {
@@ -580,37 +588,16 @@ vector<int> Solver::buildDfsTree(const vector<int> &idx) {
             }
         }
     }
+
     this->bridged_dsu = DSU(n);
     for (auto &edge : edges) {
         int u = edge.u, v = edge.v;
         if (bridges.count({u, v}) || bridges.count({v, u})) continue;
         bridged_dsu.unite(u, v);
     }
+
     vis.assign(n + 1, false);
     return res;
-}
-
-vector<int> Solver::getOrder(OptimizationSetting opt) {
-    vector<int> order(n + 1);
-    iota(order.begin(), order.end(), 0);
-    vector<int> deg(n + 1);
-    for (int i = 1; i <= n; ++i) {
-        deg[i] = adj[i].size();
-        if (opt == OPT_HIGHEST_ORDER) sort(adj[i].begin(), adj[i].end(), [&] (const Adj &a, const Adj &b) {
-            return deg[a.v] > deg[b.v];
-        });
-        else if (opt == OPT_LOWEST_ORDER) sort(adj[i].begin(), adj[i].end(), [&] (const Adj &a, const Adj &b) {
-            return deg[a.v] < deg[b.v];
-        });
-    }
-    if (opt == OPT_HIGHEST_ORDER) sort(order.begin() + 1, order.begin() + n + 1, [&] (int a, int b) {
-        return deg[a] > deg[b];
-    });
-    else if (opt == OPT_LOWEST_ORDER) sort(order.begin() + 1, order.begin() + n + 1, [&] (int a, int b) {
-        return deg[a] < deg[b];
-    });
-
-    return order;
 }
 
 int Solver::solve(ostream &out) {
@@ -644,8 +631,77 @@ int Solver::solve(ostream &out) {
         buildAdjFromEdges();
     }
 
-    vector<int> idx = getOrder(opt);
-    vector<int> components = buildDfsTree(idx);
+    vector<int> idx(n + 1);
+    iota(idx.begin(), idx.end(), 0);
+
+    unordered_set<int> dfs_roots = buildDfsTree(idx);
+
+    // ------------------------------------------
+    // calculate cycle count for each node
+
+    vector<pair<int, int>> additional_edges;
+    vector<int> psum(n + 1, 0);
+    vector<int> cycle_count(n + 1, 0);
+    set<pair<int, int>> leaves;
+
+    for (int i = 1; i <= n; ++i) {
+        if (dfs_tree_adj[i].size() == 1 && !dfs_roots.count(i)) {
+            leaves.insert({dep[i], i});
+        }
+        for (const auto &p : back_adj[i]) {
+            int j = p.v;
+            // j is ancestor of i
+            additional_edges.push_back({i, j});
+        }
+    }
+
+    for (const auto &p : additional_edges) {
+        int i = p.first , j = p.second;
+        psum[i]++;
+        if (parent[j] != -1) psum[parent[j]]--;
+    }
+
+    while (!leaves.empty()) {
+        auto p = *leaves.rbegin();
+        leaves.erase(p);
+        int u = p.second;
+        cycle_count[u] += psum[u];
+        if (parent[u] != -1) {
+            cycle_count[parent[u]] += cycle_count[u];
+            leaves.insert({dep[parent[u]], parent[u]});
+        }
+    }
+
+    auto highest_cycle_sort = [&] (int i, int j) {
+        return cycle_count[i] > cycle_count[j];
+    };
+
+    auto highest_order_sort = [&] (int i, int j) {
+        return adj[i].size() > adj[j].size();
+    };
+
+    if (m_rootSelection == OPT_HIGHEST_ORDER) {
+        sort(idx.begin() + 1, idx.begin() + n + 1, highest_order_sort);
+    }
+    else if (m_rootSelection == OPT_HIGHEST_CYCLE) {
+        sort(idx.begin() + 1, idx.begin() + n + 1, highest_cycle_sort);
+    }
+
+    for (int i = 1; i <= n; ++i) {
+        if (m_neighborSelection == OPT_HIGHEST_ORDER) {
+            sort(adj[i].begin(), adj[i].end(), [&] (const Adj &A, const Adj &B) {
+                return adj[A.v].size() > adj[B.v].size();
+            });
+        }
+        else if (m_neighborSelection == OPT_HIGHEST_CYCLE) {
+            sort(adj[i].begin(), adj[i].end(), [&] (const Adj &A, const Adj &B) {
+                return cycle_count[A.v] > cycle_count[B.v];
+            });
+        }
+    }
+    // -------------------------------------------
+
+    unordered_set<int> components = buildDfsTree(idx);
 
     saveDFSTree();
 

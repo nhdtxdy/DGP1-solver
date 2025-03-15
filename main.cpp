@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     bool outputFileSet = false;
     string outputFilename;
     
-    OptimizationSetting opt = OPT_DEFAULT;
+    OptimizationSetting rootSelection = OPT_DEFAULT, neighborSelection = OPT_DEFAULT;
     bool bridgesOpt = false;
     bool randomize = false;
     bool listAllSolutions = false;
@@ -48,25 +48,7 @@ int main(int argc, char *argv[]) {
             string token;
             while (getline(ss, token, ',')) {
                 token = trim(token);
-                if (token == "default") {
-                    // "default" is the baseline; no change needed if opt is still OPT_DEFAULT.
-                    if (opt != OPT_DEFAULT) {
-                        cerr << "Error: Only one base optimization (default, highest-order, lowest-order) may be chosen.\n";
-                        return 1;
-                    }
-                } else if (token == "highest-order") {
-                    if (opt != OPT_DEFAULT && opt != OPT_HIGHEST_ORDER) {
-                        cerr << "Error: Only one base optimization (default, highest-order, lowest-order) may be chosen.\n";
-                        return 1;
-                    }
-                    opt = OPT_HIGHEST_ORDER;
-                } else if (token == "lowest-order") {
-                    if (opt != OPT_DEFAULT && opt != OPT_LOWEST_ORDER) {
-                        cerr << "Error: Only one base optimization (default, highest-order, lowest-order) may be chosen.\n";
-                        return 1;
-                    }
-                    opt = OPT_LOWEST_ORDER;
-                } else if (token == "bridges") {
+                if (token == "bridges") {
                     bridgesOpt = true;
                 } else if (token == "randomize") {
                     randomize = true;
@@ -78,6 +60,36 @@ int main(int argc, char *argv[]) {
                     cerr << "Unknown optimization option in --optimizations: " << token << "\n";
                     return 1;
                 }
+            }
+        } else if (arg.starts_with("--root=")) {
+            string token = arg.substr(7);
+            if (token == "default") {
+                rootSelection = OPT_DEFAULT;
+            }
+            else if (token == "highest-order") {
+                rootSelection = OPT_HIGHEST_ORDER;
+            }
+            else if (token == "highest-cycle") {
+                rootSelection = OPT_HIGHEST_CYCLE;
+            }
+            else {
+                cerr << "Unknown root selection strategy: " << token << '\n';
+                return 1;
+            }
+        } else if (arg.starts_with("--neighbors=")) {
+            string token = arg.substr(12);
+            if (token == "default") {
+                neighborSelection = OPT_DEFAULT;
+            }
+            else if (token == "highest-order") {
+                neighborSelection = OPT_HIGHEST_ORDER;
+            }
+            else if (token == "highest-cycle") {
+                neighborSelection = OPT_HIGHEST_CYCLE;
+            }
+            else {
+                cerr << "Unknown neighbor selection strategy: " << token << '\n';
+                return 1;
             }
         } else if (arg == "--list-all-solutions") {
             listAllSolutions = true;
@@ -152,7 +164,7 @@ int main(int argc, char *argv[]) {
 
     file.close();
 
-    Solver solver(n, edges, opt, bridgesOpt, listAllSolutions, randomize, knapsack, triangleInequality);
+    Solver solver(n, edges, rootSelection, neighborSelection, bridgesOpt, listAllSolutions, randomize, knapsack, triangleInequality);
 
     if (outputFileSet) {
         ofstream outfile(outputFilename);

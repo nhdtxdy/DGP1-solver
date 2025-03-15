@@ -6,6 +6,7 @@
 #include <set>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include "dsu.h"
 #include <optional>
 #include <random>
@@ -15,7 +16,7 @@
 
 using Rule = std::tuple<int, int, double>;
 
-enum OptimizationSetting { OPT_DEFAULT, OPT_HIGHEST_ORDER, OPT_LOWEST_ORDER };
+enum OptimizationSetting { OPT_DEFAULT, OPT_HIGHEST_ORDER, OPT_HIGHEST_CYCLE };
 
 struct Adj {
     int v;
@@ -31,7 +32,8 @@ class Solver {
 public:
     Solver(int n,
            const std::vector<Edge>& edges,
-           OptimizationSetting opt,
+           OptimizationSetting rootSelection,
+           OptimizationSetting neighborSelection,
            bool bridgesOpt,
            bool listAllSolutions,
            bool randomize,
@@ -59,10 +61,9 @@ private:
 
     std::vector<double> value;
 
-
     int timer = 0;
 
-    OptimizationSetting opt;
+    OptimizationSetting m_rootSelection, m_neighborSelection;
     
     bool bridgesOpt, m_listAllSolutions, m_randomize, m_knapsack, m_triangleInequality;
 
@@ -73,10 +74,9 @@ private:
     void bfs(int v);
     void dfs(int v, int par);
     void getsz(int v, int par);
-    std::vector<int> buildDfsTree(const std::vector<int> &idx);
+    std::unordered_set<int> buildDfsTree(const std::vector<int> &idx);
     bool tryAssign(int v, double val);
     std::optional<std::vector<std::unordered_map<int, double>>> tryAssignAll(int v, double val, int par = -1);
-    std::vector<int> getOrder(OptimizationSetting opt);
     int buildAdjFromEdges();
     void dfs_bridges(int v, int par = -1);
     void find_bridges();
