@@ -673,10 +673,16 @@ int Solver::solve(ostream &out) {
     }
 
     auto highest_cycle_sort = [&] (int i, int j) {
+        if (cycle_count[i] == cycle_count[j]) {
+            return adj[i].size() > adj[j].size();
+        }
         return cycle_count[i] > cycle_count[j];
     };
 
     auto highest_order_sort = [&] (int i, int j) {
+        if (adj[i].size() == adj[j].size()) {
+            return cycle_count[i] > cycle_count[j];
+        }
         return adj[i].size() > adj[j].size();
     };
 
@@ -690,11 +696,17 @@ int Solver::solve(ostream &out) {
     for (int i = 1; i <= n; ++i) {
         if (m_neighborSelection == OPT_HIGHEST_ORDER) {
             sort(adj[i].begin(), adj[i].end(), [&] (const Adj &A, const Adj &B) {
+                if (adj[A.v].size() == adj[B.v].size()) {
+                    return cycle_count[A.v] > cycle_count[B.v];
+                }
                 return adj[A.v].size() > adj[B.v].size();
             });
         }
         else if (m_neighborSelection == OPT_HIGHEST_CYCLE) {
             sort(adj[i].begin(), adj[i].end(), [&] (const Adj &A, const Adj &B) {
+                if (cycle_count[A.v] == cycle_count[B.v]) {
+                    return adj[A.v].size() > adj[B.v].size();
+                }
                 return cycle_count[A.v] > cycle_count[B.v];
             });
         }
