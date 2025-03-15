@@ -12,11 +12,11 @@ where
 * <input_filename> is the file containing the graph.
 * [output_filename] is the (optional) output file (the result will be printed to stdout by default).
 * `rootSelection`, `neighborSelection` (optional) can be `highest-cycle` or `highest-order`. If not used, the default ordering (i.e input order) will be used.
-* [optimizations_i] (optional) can be one of the following: `bridges`, `knapsack`, `randomize`, `triangle`.
+* [optimizations_i] (optional) can be one of the following: `bridges`, `ssp`, `randomize`, `triangle`.
 * [--list-all-solutions] flag is optional, which when enabled will print all solutions instead of finding just one solution.
 
 Example usage:
 
 `./main graph.dat res.txt --root=highest-order --list-all-solutions` 
 
-`./main graph.dat --root=highest-cycle --neighbors=highest-cycle --optimizations=bridges,randomize,triangle,knapsack`
+`./main graph.dat --root=highest-cycle --neighbors=highest-cycle --optimizations=bridges,randomize,triangle,ssp`

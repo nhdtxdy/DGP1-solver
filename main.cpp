@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
                     bridgesOpt = true;
                 } else if (token == "randomize") {
                     randomize = true;
-                } else if (token == "knapsack") {
+                } else if (token == "ssp") {
                     knapsack = true;
                 } else if (token == "triangle") {
                     triangleInequality = true;
