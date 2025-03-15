@@ -1,14 +1,22 @@
 To run the code, first compile the project:
 
 `make clean`
+
 `make`
 
 Then, run with the following format:
-./main <input_filename> [output_filename] [--optimizations=optimization1,optimization2,...] [--list-all-solutions]
+`./main <input_filename> [output_filename] [--root=<rootSelection>] [--neighbors=<neighborSelection>] [--optimizations=optimization_1,optimization_2,...] [--list-all-solutions]`
 
-where <input_filename> is the file containing the graph, [output_filename] is the (optional) output file (the result will be printed to stdout by default), and [optimizations] are one of default (not altering the vertices order from the graph file, highest-order (prioritize higher degree vertices first) or lowest-order (prioritize lower degree first) and/or bridges (not supported yet). [--list-all-solutions] flag is also optional, which when enabled will print all solutions instead of finding just one solution.
+where
+
+* <input_filename> is the file containing the graph.
+* [output_filename] is the (optional) output file (the result will be printed to stdout by default).
+* `rootSelection`, `neighborSelection` (optional) can be `highest-cycle` or `highest-order`. If not used, the default ordering (i.e input order) will be used.
+* [optimizations_i] (optional) can be one of the following: `bridges`, `knapsack`, `randomize`, `triangle`.
+* [--list-all-solutions] flag is optional, which when enabled will print all solutions instead of finding just one solution.
 
 Example usage:
 
-./main graph.dat res.txt --optimizations=highest-order --list-all-solutions (valid)
-./main graph.dat res.txt --optimizations=default,highest-order (invalid since only one among default, highest-order and lowest-order can be selected)
+`./main graph.dat res.txt --root=highest-order --list-all-solutions` 
+
+`./main graph.dat --root=highest-cycle --neighbors=highest-cycle --optimizations=bridges,randomize,triangle,knapsack`
