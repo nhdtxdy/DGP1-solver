@@ -40,7 +40,7 @@ bitset<WINDOW> bitset_merge(const bitset<WINDOW> &A, const bitset<WINDOW> &B) {
 }
 
 // checks if there exists an assignment with sum "value" using edges on the path from v to u
-bool Solver::can_knapsack(int u, int v, int value) {
+bool Solver::can_knapsack(int u, int v, WeightType value) {
     bitset<WINDOW> bset;
     bool first = true;
     for (int i = logn; i >= 0; --i) {
@@ -74,7 +74,7 @@ optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, Wei
     for (auto &p : back_adj[v]) {
         int u = p.v;
         WeightType w = p.weight;
-        if (fabs(fabs(value[v] - value[u]) - w) > eps) {
+        if (std::abs(std::abs(value[v] - value[u]) - w) > eps) {
             lowest_infeasible_cycle = dep[u];
             return nullopt;
         }
@@ -83,13 +83,12 @@ optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, Wei
     if (m_knapsack) {
         for (const Rule &rule : cycle_rules[v]) {
             int x, y;
-            WeightType w_;
-            tie(x, y, w_) = rule;
-            int w = (int)w_;
+            WeightType w;
+            tie(x, y, w) = rule;
 
             // value[x] is known
-            int potential_y1 = (int)value[x] + w;
-            int potential_y2 = (int)value[x] - w;
+            WeightType potential_y1 = value[x] + w;
+            WeightType potential_y2 = value[x] - w;
 
             if (!(-M_LIMIT <= potential_y1 && potential_y1 <= M_LIMIT && can_knapsack(y, v, potential_y1 - val)) && !(-M_LIMIT <= potential_y2 && potential_y2 <= M_LIMIT && can_knapsack(y, v, potential_y2 - val))) {
                 return nullopt;
@@ -495,7 +494,7 @@ void Solver::dfs(int v, int par = -1) {
     vis[v] = 2;
 }
 
-void Solver::get_knapsack(int v, int w_par, int par) {
+void Solver::get_knapsack(int v, WeightType w_par, int par) {
     if (par != -1) {
         knapsack[v][0].set(w_par + OFFSET);
         knapsack[v][0].set(-w_par + OFFSET);
@@ -560,7 +559,7 @@ void Solver::calculate_sum_pathw(int v, int par, WeightType w) {
     }
 }
 
-unordered_set<int> Solver::buildDfsTree(const vector<int> &idx) {
+unordered_set<int> Solver::buildDfsTree(const vector<int> &idx, bool first_time) {
     unordered_set<int> res;
     vis.assign(n + 1, false);
     for (int i = 1; i <= n; ++i) {
@@ -575,7 +574,7 @@ unordered_set<int> Solver::buildDfsTree(const vector<int> &idx) {
             res.insert(idx[i]);
             dfs(idx[i]);
             getsz(idx[i]);
-            if (m_knapsack) {
+            if (!first_time && m_knapsack) {
                 cerr << "Starting get knapsack...\n";
                 auto start_bs_count = std::chrono::high_resolution_clock::now();
                 get_knapsack(idx[i], -1, -1);
@@ -583,7 +582,7 @@ unordered_set<int> Solver::buildDfsTree(const vector<int> &idx) {
                 auto time_bs_count = std::chrono::duration_cast<std::chrono::milliseconds>(end_bs_count - start_bs_count).count();
                 cerr << "Get knapsack done in " << time_bs_count << " milliseconds.\n";
             }
-            if (m_triangleInequality) {
+            if (!first_time && m_triangleInequality) {
                 calculate_sum_pathw(idx[i]);
             }
         }
@@ -634,7 +633,7 @@ int Solver::solve(ostream &out) {
     vector<int> idx(n + 1);
     iota(idx.begin(), idx.end(), 0);
 
-    unordered_set<int> dfs_roots = buildDfsTree(idx);
+    unordered_set<int> dfs_roots = buildDfsTree(idx, true);
 
     // ------------------------------------------
     // calculate cycle count for each node
@@ -713,7 +712,7 @@ int Solver::solve(ostream &out) {
     }
     // -------------------------------------------
 
-    unordered_set<int> components = buildDfsTree(idx);
+    unordered_set<int> components = buildDfsTree(idx, false);
 
     saveDFSTree();
 
@@ -738,6 +737,19 @@ int Solver::solve(ostream &out) {
 
                 if ((2 * mw - sum) > eps) {
                     cerr << "[Triangle inequality] No solution found!\n";
+                    return 1;
+                }
+            }
+        }
+    }
+
+    if (m_knapsack) {
+        for (int i = 1; i <= n; ++i) {
+            for (const auto &p : back_adj[i]) {
+                int j = p.v;
+                WeightType w = p.weight;
+                if (!can_knapsack(i, j, w)) {
+                    cerr << "[SSP][Pre-DFS] Infeasible cycle detected. No solution found.\n";
                     return 1;
                 }
             }
@@ -798,7 +810,7 @@ bool Solver::verify_solution(const map<int, WeightType> &sol) {
     for (const auto &edge : edges) {
         int u = edge.u, v = edge.v;
         WeightType w = edge.weight;
-        if (fabs(fabs(sol.at(u) - sol.at(v)) - w) > eps) return false;
+        if (std::abs(std::abs(sol.at(u) - sol.at(v)) - w) > eps) return false;
     }
     return true;
 }
@@ -831,27 +843,3 @@ void Solver::outputCombinedResult(ostream &out, const vector<vector<unordered_ma
         if (solCount == num_solutions) return;
     }
 }
-
-// bool Solver::tryAssign(int v, WeightType val = 0) {
-//     // cerr << "Visit " << v << ' ' << val << '\n';
-//     vis[v] = true;
-//     value[v] = val;
-//     bool ok = true;
-//     for (auto &p : adj[v]) {
-//         int u = p.v;
-//         WeightType w = p.weight;
-//         if (vis[u] && fabs(fabs(value[v] - value[u]) - w) > eps) {
-//             ok = false;
-//             break;
-//         }
-//         if (!vis[u]) {
-//             if (!tryAssign(u, val + w) && !tryAssign(u, val - w)) {
-//                 ok = false;
-//                 break;
-//             }
-//         }
-//     }
-//     if (ok) return true;
-//     vis[v] = false;
-//     return ok;
-// }

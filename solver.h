@@ -72,7 +72,7 @@ private:
     void bfs(int v);
     void dfs(int v, int par);
     void getsz(int v, int par);
-    std::unordered_set<int> buildDfsTree(const std::vector<int> &idx);
+    std::unordered_set<int> buildDfsTree(const std::vector<int> &idx, bool first_time);
     bool tryAssign(int v, WeightType val);
     std::optional<std::vector<std::unordered_map<int, WeightType>>> tryAssignAll(int v, WeightType val, int par = -1);
     int buildAdjFromEdges();
@@ -80,8 +80,8 @@ private:
     void find_bridges();
     void outputCombinedResult(std::ostream &out, const std::vector<std::vector<std::unordered_map<int, WeightType>>> &all_res, int num_solutions = -1);
     void saveDFSTree();
-    void get_knapsack(int v, int w_par, int par = -1);
-    bool can_knapsack(int u, int v, int w);
+    void get_knapsack(int v, WeightType w_par, int par = -1);
+    bool can_knapsack(int u, int v, WeightType w);
     bool verify_solution(const std::map<int, WeightType> &sol);
     void calculate_sum_pathw(int v, int par = -1, WeightType w = 0);
 };

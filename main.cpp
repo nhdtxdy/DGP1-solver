@@ -158,6 +158,12 @@ int main(int argc, char *argv[]) {
                                 cerr << "Error on line " << lineno << ": invalid vertex!\n";
                                 return 0;
                             }
+                            #ifdef USE_INTEGER_WEIGHTS
+                                if (std::abs(floor(c) - c) > eps) {
+                                    cerr << "[ERROR] Floating-point value detected in input graph!\n";
+                                    return 1;
+                                }
+                            #endif
                             edges.push_back({u, v, (WeightType)c});
                         }
                     }
@@ -167,6 +173,11 @@ int main(int argc, char *argv[]) {
     }
 
     file.close();
+
+    if (knapsack) {
+        assert(std::is_integral<WeightType>::value && std::is_signed<WeightType>::value &&
+            "Error: SSP optimization requires the program to be compiled with USE_INTEGER_WEIGHTS.");
+    }
 
     Solver solver(n, edges, rootSelection, neighborSelection, bridgesOpt, listAllSolutions, randomize, knapsack, triangleInequality);
 
