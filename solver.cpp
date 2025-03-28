@@ -60,8 +60,21 @@ bool Solver::can_knapsack(int u, int v, WeightType value) {
     return bset[value + OFFSET];
 }
 
+struct PairHash {
+    int n;
+    static constexpr std::size_t MOD = 1e9 + 7;
+
+    explicit PairHash(int n) : n(n) {}
+
+    std::size_t operator()(const std::pair<int, int>& p) const {
+        return (1LL * p.first * (n + 1) + p.second) % MOD;
+    }
+};
+
 optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, WeightType val, int par) {
     static int lowest_infeasible_cycle = -1;
+    static unordered_set<pair<int, int>, PairHash> tested_cycles(edges.size() - (n - 1), PairHash(n));
+
 
     if (dep[v] <= lowest_infeasible_cycle) {
         return nullopt;
@@ -75,10 +88,17 @@ optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, Wei
         int u = p.v;
         WeightType w = p.weight;
         if (std::abs(std::abs(value[v] - value[u]) - w) > eps) {
-            lowest_infeasible_cycle = dep[u];
+            if (!tested_cycles.count({v, u})) {
+                lowest_infeasible_cycle = dep[u];
+            }
             return nullopt;
         }
+        else {
+            tested_cycles.insert({v, u});
+        }
     }
+
+    lowest_infeasible_cycle = -1;
 
     if (m_knapsack) {
         for (const Rule &rule : cycle_rules[v]) {
@@ -134,8 +154,6 @@ optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, Wei
         if (to_merge.empty()) {
             return nullopt;
         }
-
-        lowest_infeasible_cycle = -1;
 
         merge(merged, to_merge);
     }
@@ -323,14 +341,14 @@ private:
 
         // For each translation vector, compute the scaled solution.
         for (const auto &T : translations) {
-          unordered_map<int, WeightType> scaled;
-          for (const auto &p : merged) {
+            unordered_map<int, WeightType> scaled;
+            for (const auto &p : merged) {
                 int u = p.first;
                 // Look up DSU rep for u.
                 int rep = compMap[u];
                 int compIdx = repToIndex[rep];
                 scaled[u] = p.second + T.at(compIdx);
-          }
+            }
           buffer.push_back(scaled);
         }
         advanceIndices();
@@ -368,9 +386,10 @@ Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting rootSelecti
             m_triangleInequality(triangleInequality)
 {
     cerr << "DGP1 Solver initialized with optimizations: ";
-    cerr << (knapsack ? "knapsack, " : "");
+    cerr << (knapsack ? "ssp, " : "");
     cerr << (randomize ? "randomize, " : "");
     cerr << (bridgesOpt ? "bridges, " : "");
+    cerr << (triangleInequality ? "triangle inequality, " : "");
     cerr << "\n---------------------------\n";
     cerr << "List all solutions is " << ((listAllSolutions) ? "enabled" : "disabled") << ".\n";
     cerr << "---------------------------\n";
