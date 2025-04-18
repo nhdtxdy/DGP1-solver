@@ -1,12 +1,11 @@
 #include "dsu.h"
 #include <numeric>
-using namespace std;
 
 DSU::DSU(int n) {
 	this->ccs = n;
 	par.resize(n + 1);
 	sz.resize(n + 1, 1);
-	iota(par.begin(), par.end(), 0);
+	std::iota(par.begin(), par.end(), 0);
 }
 
 void DSU::unite(int x, int y) {
@@ -14,7 +13,7 @@ void DSU::unite(int x, int y) {
 	y = find(y);
 	if (x == y) return;
 	--ccs;
-	if (sz[x] < sz[y]) swap(x, y);
+	if (sz[x] < sz[y]) std::swap(x, y);
 	par[y] = x;
 	sz[x] += sz[y];
 }

@@ -6,14 +6,13 @@
 #include <map>
 #include <fstream>
 #include <chrono>
-using namespace std;
 
 // merge assignments from two branches
-void merge(vector<unordered_map<int, WeightType>> &base, vector<unordered_map<int, WeightType>> to_merge) {
-    vector<unordered_map<int, WeightType>> merged;
-    for (const unordered_map<int, WeightType>& b : base) {
-        for (const unordered_map<int, WeightType> &tm : to_merge) {
-            unordered_map<int, WeightType> cpy = b;
+void merge(std::vector<std::unordered_map<int, WeightType>> &base, std::vector<std::unordered_map<int, WeightType>> to_merge) {
+    std::vector<std::unordered_map<int, WeightType>> merged;
+    for (const std::unordered_map<int, WeightType>& b : base) {
+        for (const std::unordered_map<int, WeightType> &tm : to_merge) {
+            std::unordered_map<int, WeightType> cpy = b;
             cpy.insert(tm.begin(), tm.end());
             merged.push_back(cpy);
         }
@@ -22,14 +21,14 @@ void merge(vector<unordered_map<int, WeightType>> &base, vector<unordered_map<in
 }
 
 // merge two knapsack bitsets (for knapsack optimization)
-bitset<WINDOW> bitset_merge(const bitset<WINDOW> &A, const bitset<WINDOW> &B) {
-    bitset<WINDOW> const *ptrA = &A;
-    bitset<WINDOW> const *ptrB = &B;
+std::bitset<WINDOW> bitset_merge(const std::bitset<WINDOW> &A, const std::bitset<WINDOW> &B) {
+    std::bitset<WINDOW> const *ptrA = &A;
+    std::bitset<WINDOW> const *ptrB = &B;
     if (A.count() < B.count()) {
-        swap(ptrA, ptrB);
+        std::swap(ptrA, ptrB);
     }
     // A > B
-    bitset<WINDOW> res;
+    std::bitset<WINDOW> res;
     for (int idx = ptrB->_Find_first(); idx < (int)ptrB->size(); idx = ptrB->_Find_next(idx)) {
         int shift = idx - OFFSET;
         if (shift >= 0 && shift < WINDOW) res |= ((*ptrA) << shift);
@@ -41,7 +40,7 @@ bitset<WINDOW> bitset_merge(const bitset<WINDOW> &A, const bitset<WINDOW> &B) {
 
 // checks if there exists an assignment with sum "value" using edges on the path from v to u
 bool Solver::can_knapsack(int u, int v, WeightType value) {
-    bitset<WINDOW> bset;
+    std::bitset<WINDOW> bset;
     bool first = true;
     for (int i = logn; i >= 0; --i) {
         int mid = binlift[u][i];
@@ -71,16 +70,16 @@ struct PairHash {
     }
 };
 
-optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, WeightType val, int par) {
+std::optional<std::vector<std::unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, WeightType val, int par) {
     static int lowest_infeasible_cycle = -1;
-    static unordered_set<pair<int, int>, PairHash> tested_cycles(edges.size() - (n - 1), PairHash(n));
+    static std::unordered_set<std::pair<int, int>, PairHash> tested_cycles(edges.size() - (n - 1), PairHash(n));
 
 
     if (dep[v] <= lowest_infeasible_cycle) {
-        return nullopt;
+        return std::nullopt;
     }
 
-    if (m_knapsack && (val > M_LIMIT || val < -M_LIMIT)) return nullopt;
+    if (m_knapsack && (val > M_LIMIT || val < -M_LIMIT)) return std::nullopt;
     value[v] = val;
 
     // detect invalid cycle through back edges
@@ -91,7 +90,7 @@ optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, Wei
             if (!tested_cycles.count({v, u})) {
                 lowest_infeasible_cycle = dep[u];
             }
-            return nullopt;
+            return std::nullopt;
         }
         else {
             tested_cycles.insert({v, u});
@@ -104,20 +103,20 @@ optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, Wei
         for (const Rule &rule : cycle_rules[v]) {
             int x, y;
             WeightType w;
-            tie(x, y, w) = rule;
+            std::tie(x, y, w) = rule;
 
             // value[x] is known
             WeightType potential_y1 = value[x] + w;
             WeightType potential_y2 = value[x] - w;
 
             if (!(-M_LIMIT <= potential_y1 && potential_y1 <= M_LIMIT && can_knapsack(y, v, potential_y1 - val)) && !(-M_LIMIT <= potential_y2 && potential_y2 <= M_LIMIT && can_knapsack(y, v, potential_y2 - val))) {
-                return nullopt;
+                return std::nullopt;
             }
         }
     }
 
-    vector<unordered_map<int, WeightType>> merged;
-    unordered_map<int, WeightType> single_map;
+    std::vector<std::unordered_map<int, WeightType>> merged;
+    std::unordered_map<int, WeightType> single_map;
     single_map[v] = val;
     merged.push_back(single_map);
 
@@ -135,24 +134,24 @@ optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, Wei
 
         // TO STUDY: TRAVERSAL ORDER HEURISTICS (BIG CHILD IN SMALL-TO-LARGE TECHNIQUE?)
 
-        vector<unordered_map<int, WeightType>> to_merge;
+        std::vector<std::unordered_map<int, WeightType>> to_merge;
 
         auto d1 = tryAssignAll(u, val + w, v);
         if (d1.has_value()) {
             // swap is O(1) while insert is O(n)
-            swap(to_merge, d1.value());
+            std::swap(to_merge, d1.value());
         }
 
         if (this->m_listAllSolutions || to_merge.empty()) {
             const auto &d2 = tryAssignAll(u, val - w, v);
             if (d2.has_value()) {
-                const vector<unordered_map<int, WeightType>> &d2_value = d2.value();
+                const std::vector<std::unordered_map<int, WeightType>> &d2_value = d2.value();
                 to_merge.insert(to_merge.end(), d2_value.begin(), d2_value.end());
             }
         }
 
         if (to_merge.empty()) {
-            return nullopt;
+            return std::nullopt;
         }
 
         merge(merged, to_merge);
@@ -163,14 +162,14 @@ optional<vector<unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, Wei
 }
 
 // DFS helper for computing translations (in case of bridges optimization)
-vector<unordered_map<int, WeightType>> dfsTranslations(int v,
+std::vector<std::unordered_map<int, WeightType>> dfsTranslations(int v,
                     WeightType val,
                     int par,
-                    const vector<vector<tuple<int, WeightType, WeightType>>>& compAdj,
+                    const std::vector<std::vector<std::tuple<int, WeightType, WeightType>>>& compAdj,
                     bool listAllSolutions)
 {
-    vector<unordered_map<int, WeightType>> merged;
-    unordered_map<int, WeightType> single_map;
+    std::vector<std::unordered_map<int, WeightType>> merged;
+    std::unordered_map<int, WeightType> single_map;
     single_map[v] = val;
     merged.push_back(single_map);
 
@@ -178,14 +177,14 @@ vector<unordered_map<int, WeightType>> dfsTranslations(int v,
         int u;
         WeightType w;
         WeightType cur_dist;
-        tie(u, w, cur_dist) = p;
+        std::tie(u, w, cur_dist) = p;
         if (u == par) continue;
 
-        vector<unordered_map<int, WeightType>> to_merge;
+        std::vector<std::unordered_map<int, WeightType>> to_merge;
 
         // v -> u: cur_dist, want w
         auto d1_value = dfsTranslations(u, val + (w - cur_dist), v, compAdj, listAllSolutions);
-        swap(to_merge, d1_value);
+        std::swap(to_merge, d1_value);
 
         if (listAllSolutions || to_merge.empty()) {
             const auto &d2_value = dfsTranslations(u, val + (-w - cur_dist), v, compAdj, listAllSolutions);
@@ -215,9 +214,9 @@ public:
     //   compMap: mapping from vertex to its DSU representative (1-indexed, not necessarily contiguous).
     //            (Note: all_res is assumed to be ordered by these re-indexed components.)
     CombinedSolutionIterator(
-        const vector<vector<unordered_map<int, WeightType>>>& all_res,
-        const vector<Rule>& rules,
-        const vector<int>& compMap,
+        const std::vector<std::vector<std::unordered_map<int, WeightType>>>& all_res,
+        const std::vector<Rule>& rules,
+        const std::vector<int>& compMap,
         bool listAllSolutions)
         : all_res(all_res), rules(rules), compMap(compMap), has_next(true), m_listAllSolutions(listAllSolutions)
     {
@@ -248,29 +247,29 @@ public:
     }
     
     // Returns the next combined (scaled) solution.
-    unordered_map<int, WeightType> next() {
+    std::unordered_map<int, WeightType> next() {
         if (buffer.empty()) {
             advanceBuffer();
         }
-        unordered_map<int, WeightType> sol = buffer.front();
+        std::unordered_map<int, WeightType> sol = buffer.front();
         buffer.erase(buffer.begin());
         return sol;
     }
     
 private:
-    const vector<vector<unordered_map<int, WeightType>>>& all_res;
-    const vector<tuple<int, int, WeightType>>& rules;
-    const vector<int>& compMap;  // DSU representative for each vertex (1-indexed).
-    vector<int> indices;         // current candidate index for each component.
+    const std::vector<std::vector<std::unordered_map<int, WeightType>>>& all_res;
+    const std::vector<std::tuple<int, int, WeightType>>& rules;
+    const std::vector<int>& compMap;  // DSU representative for each vertex (1-indexed).
+    std::vector<int> indices;         // current candidate index for each component.
     bool has_next, m_listAllSolutions;
-    vector<unordered_map<int, WeightType>> buffer;  // buffer holding scaled solutions for current merged candidate.
+    std::vector<std::unordered_map<int, WeightType>> buffer;  // buffer holding scaled solutions for current merged candidate.
     
-    set<int> compSet;
-    unordered_map<int, int> repToIndex;
+    std::set<int> compSet;
+    std::unordered_map<int, int> repToIndex;
 
     // Merge candidate solutions from each component according to current indices.
-    unordered_map<int, WeightType> mergeCurrentCandidate() {
-        unordered_map<int, WeightType> merged;
+    std::unordered_map<int, WeightType> mergeCurrentCandidate() {
+        std::unordered_map<int, WeightType> merged;
         for (size_t i = 0; i < all_res.size(); i++) {
             const auto &sol = all_res[i][indices[i]];
             for (const auto &p : sol) {
@@ -302,17 +301,17 @@ private:
     //    T[comp(u)'] - T[comp(v)'] = ± (w - (merged[u] - merged[v])),
     // where comp(u)' is the re-indexed component.
     // Since compMap is not necessarily 0-indexed, we first re-index.
-    vector<unordered_map<int, WeightType>> scaleAllTranslations(const unordered_map<int, WeightType>& merged) {
+    std::vector<std::unordered_map<int, WeightType>> scaleAllTranslations(const std::unordered_map<int, WeightType>& merged) {
         int k = repToIndex.size();
 
         // Build the component adjacency list.
-        vector<vector<tuple<int, WeightType, WeightType>>> compAdj(k);
+        std::vector<std::vector<std::tuple<int, WeightType, WeightType>>> compAdj(k);
 
         // For each rule, if both vertices appear in merged, add an edge.
         for (const auto &r : rules) {
             int u, v;
             WeightType w;
-            tie(u, v, w) = r;
+            std::tie(u, v, w) = r;
             int rep_u = compMap[u];
             int rep_v = compMap[v];
             // Get re-indexed component indices.
@@ -336,12 +335,12 @@ private:
     void advanceBuffer() {
         if (!has_next) return;
 
-        unordered_map<int, WeightType> merged = mergeCurrentCandidate();
-        vector<unordered_map<int, WeightType>> translations = scaleAllTranslations(merged);
+        std::unordered_map<int, WeightType> merged = mergeCurrentCandidate();
+        std::vector<std::unordered_map<int, WeightType>> translations = scaleAllTranslations(merged);
 
         // For each translation vector, compute the scaled solution.
         for (const auto &T : translations) {
-            unordered_map<int, WeightType> scaled;
+            std::unordered_map<int, WeightType> scaled;
             for (const auto &p : merged) {
                 int u = p.first;
                 // Look up DSU rep for u.
@@ -359,7 +358,7 @@ private:
 int Solver::buildAdjFromEdges() {
     timer = 0;
     DSU dsu(n);
-    adj.assign(n + 1, vector<Adj>());
+    adj.assign(n + 1, std::vector<Adj>());
 
     for (const Edge &edge: edges) {
         int u = edge.u, v = edge.v;
@@ -372,8 +371,8 @@ int Solver::buildAdjFromEdges() {
     return dsu.num_ccs();
 }
 
-Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting rootSelection, OptimizationSetting neighborSelection, bool bridgesOpt, bool listAllSolutions, bool randomize, bool knapsack, bool triangleInequality) :
-            rng(random_device{}()), 
+Solver::Solver(int n, const std::vector<Edge>& edges, OptimizationSetting rootSelection, OptimizationSetting neighborSelection, bool bridgesOpt, bool listAllSolutions, bool randomize, bool knapsack, bool triangleInequality) :
+            rng(std::random_device{}()), 
             ran_gen(0.0, 1.0),
             n(n),
             edges(edges),
@@ -385,14 +384,14 @@ Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting rootSelecti
             m_knapsack(knapsack),
             m_triangleInequality(triangleInequality)
 {
-    cerr << "DGP1 Solver initialized with optimizations: ";
-    cerr << (knapsack ? "ssp, " : "");
-    cerr << (randomize ? "randomize, " : "");
-    cerr << (bridgesOpt ? "bridges, " : "");
-    cerr << (triangleInequality ? "triangle inequality, " : "");
-    cerr << "\n---------------------------\n";
-    cerr << "List all solutions is " << ((listAllSolutions) ? "enabled" : "disabled") << ".\n";
-    cerr << "---------------------------\n";
+    std::cerr << "DGP1 Solver initialized with optimizations: ";
+    std::cerr << (knapsack ? "ssp, " : "");
+    std::cerr << (randomize ? "randomize, " : "");
+    std::cerr << (bridgesOpt ? "bridges, " : "");
+    std::cerr << (triangleInequality ? "triangle inequality, " : "");
+    std::cerr << "\n---------------------------\n";
+    std::cerr << "List all solutions is " << ((listAllSolutions) ? "enabled" : "disabled") << ".\n";
+    std::cerr << "---------------------------\n";
     adj.resize(n + 1);
     dfs_tree_adj.resize(n + 1);
     vis.resize(n + 1, 0);
@@ -428,11 +427,11 @@ Solver::Solver(int n, const vector<Edge>& edges, OptimizationSetting rootSelecti
     }
 
     if (buildAdjFromEdges() != 1) {
-        cerr << "Error initializing solver: Graph is not connected\n";
+        std::cerr << "Error initializing solver: Graph is not connected\n";
         exit(1);
     }
 
-    cerr << "Solver initialization done!\n";
+    std::cerr << "Solver initialization done!\n";
 }
 
 void Solver::find_bridges() {
@@ -456,11 +455,11 @@ void Solver::dfs_bridges(int v, int par) {
         WeightType w = p.weight;
         if (u == par) continue;
         if (vis[u] == 1) {
-            low[v] = min(low[v], tin[u]);
+            low[v] = std::min(low[v], tin[u]);
         }
         else if (vis[u] == 0) {
             dfs_bridges(u, v);
-            low[v] = min(low[v], low[u]);
+            low[v] = std::min(low[v], low[u]);
         }
         if (low[u] > tin[v]) {
             bridges.insert({v, u});
@@ -524,7 +523,7 @@ void Solver::get_knapsack(int v, WeightType w_par, int par) {
                 // knapsack[v][i] <- knapsack[v][i - 1], knapsack[mid][i - 1]
                 int v_cpy = v;
                 if (knapsack[v_cpy][i - 1].count() < knapsack[mid][i - 1].count()) {
-                    swap(v_cpy, mid);
+                    std::swap(v_cpy, mid);
                 }
                 const auto &bset1 = knapsack[mid][i - 1];
                 for (int idx = bset1._Find_first(); idx < (int)bset1.size(); idx = bset1._Find_next(idx)) {
@@ -567,7 +566,7 @@ void Solver::calculate_sum_pathw(int v, int par, WeightType w) {
         int mid = binlift[v][i - 1];
         if (mid != -1) {
             path_sum[v][i] = path_sum[v][i - 1] + path_sum[mid][i - 1];
-            max_w[v][i] = max(max_w[v][i - 1], max_w[mid][i - 1]);
+            max_w[v][i] = std::max(max_w[v][i - 1], max_w[mid][i - 1]);
         }
     }
     for (const auto &p : dfs_tree_adj[v]) {
@@ -578,8 +577,8 @@ void Solver::calculate_sum_pathw(int v, int par, WeightType w) {
     }
 }
 
-unordered_set<int> Solver::buildDfsTree(const vector<int> &idx, bool first_time) {
-    unordered_set<int> res;
+std::unordered_set<int> Solver::buildDfsTree(const std::vector<int> &idx, bool first_time) {
+    std::unordered_set<int> res;
     vis.assign(n + 1, false);
     for (int i = 1; i <= n; ++i) {
         back_adj[i].clear();
@@ -594,12 +593,12 @@ unordered_set<int> Solver::buildDfsTree(const vector<int> &idx, bool first_time)
             dfs(idx[i]);
             getsz(idx[i]);
             if (!first_time && m_knapsack) {
-                cerr << "Starting get knapsack...\n";
+                std::cerr << "Starting get knapsack...\n";
                 auto start_bs_count = std::chrono::high_resolution_clock::now();
                 get_knapsack(idx[i], -1, -1);
                 auto end_bs_count = std::chrono::high_resolution_clock::now();
                 auto time_bs_count = std::chrono::duration_cast<std::chrono::milliseconds>(end_bs_count - start_bs_count).count();
-                cerr << "Get knapsack done in " << time_bs_count << " milliseconds.\n";
+                std::cerr << "Get knapsack done in " << time_bs_count << " milliseconds.\n";
             }
             if (!first_time && m_triangleInequality) {
                 calculate_sum_pathw(idx[i]);
@@ -618,27 +617,27 @@ unordered_set<int> Solver::buildDfsTree(const vector<int> &idx, bool first_time)
     return res;
 }
 
-int Solver::solve(ostream &out) {
+int Solver::solve(std::ostream &out) {
     auto get_maxw_sum_path = [&] (int u, int v) {
-        pair<WeightType, WeightType> res = {0, 0};
-        if (dep[u] > dep[v]) swap(u, v);
+        std::pair<WeightType, WeightType> res = {0, 0};
+        if (dep[u] > dep[v]) std::swap(u, v);
         // u is ancestor of v
         for (int i = logn; i >= 0; --i) {
             if (binlift[v][i] != -1 && dep[binlift[v][i]] >= dep[u]) {
                 res.first += path_sum[v][i];
-                res.second = max(res.second, max_w[v][i]);
+                res.second = std::max(res.second, max_w[v][i]);
                 v = binlift[v][i];
             }
         }
         return res;
     };
-    auto start_bs_count = chrono::high_resolution_clock::now();
+    auto start_bs_count = std::chrono::high_resolution_clock::now();
 
     if (bridgesOpt) {
         find_bridges();
-        cerr << "There are " << bridges.size() << " bridges in the graph.\n";
+        std::cerr << "There are " << bridges.size() << " bridges in the graph.\n";
         // purge all bridge edges
-        vector<Edge> t_edges;
+        std::vector<Edge> t_edges;
         for (auto edge : edges) {
             int u = edge.u, v = edge.v;
             if (bridges.count({u, v}) || bridges.count({v, u})) continue;
@@ -649,18 +648,18 @@ int Solver::solve(ostream &out) {
         buildAdjFromEdges();
     }
 
-    vector<int> idx(n + 1);
-    iota(idx.begin(), idx.end(), 0);
+    std::vector<int> idx(n + 1);
+    std::iota(idx.begin(), idx.end(), 0);
 
-    unordered_set<int> dfs_roots = buildDfsTree(idx, true);
+    std::unordered_set<int> dfs_roots = buildDfsTree(idx, true);
 
     // ------------------------------------------
     // calculate cycle count for each node
 
-    vector<pair<int, int>> additional_edges;
-    vector<int> psum(n + 1, 0);
-    vector<int> cycle_count(n + 1, 0);
-    set<pair<int, int>> leaves;
+    std::vector<std::pair<int, int>> additional_edges;
+    std::vector<int> psum(n + 1, 0);
+    std::vector<int> cycle_count(n + 1, 0);
+    std::set<std::pair<int, int>> leaves;
 
     for (int i = 1; i <= n; ++i) {
         if (dfs_tree_adj[i].size() == 1 && !dfs_roots.count(i)) {
@@ -705,15 +704,15 @@ int Solver::solve(ostream &out) {
     };
 
     if (m_rootSelection == OPT_HIGHEST_ORDER) {
-        sort(idx.begin() + 1, idx.begin() + n + 1, highest_order_sort);
+        std::sort(idx.begin() + 1, idx.begin() + n + 1, highest_order_sort);
     }
     else if (m_rootSelection == OPT_HIGHEST_CYCLE) {
-        sort(idx.begin() + 1, idx.begin() + n + 1, highest_cycle_sort);
+        std::sort(idx.begin() + 1, idx.begin() + n + 1, highest_cycle_sort);
     }
 
     for (int i = 1; i <= n; ++i) {
         if (m_neighborSelection == OPT_HIGHEST_ORDER) {
-            sort(adj[i].begin(), adj[i].end(), [&] (const Adj &A, const Adj &B) {
+            std::sort(adj[i].begin(), adj[i].end(), [&] (const Adj &A, const Adj &B) {
                 if (adj[A.v].size() == adj[B.v].size()) {
                     return cycle_count[A.v] > cycle_count[B.v];
                 }
@@ -721,7 +720,7 @@ int Solver::solve(ostream &out) {
             });
         }
         else if (m_neighborSelection == OPT_HIGHEST_CYCLE) {
-            sort(adj[i].begin(), adj[i].end(), [&] (const Adj &A, const Adj &B) {
+            std::sort(adj[i].begin(), adj[i].end(), [&] (const Adj &A, const Adj &B) {
                 if (cycle_count[A.v] == cycle_count[B.v]) {
                     return adj[A.v].size() > adj[B.v].size();
                 }
@@ -731,7 +730,7 @@ int Solver::solve(ostream &out) {
     }
     // -------------------------------------------
 
-    unordered_set<int> components = buildDfsTree(idx, false);
+    std::unordered_set<int> components = buildDfsTree(idx, false);
 
     saveDFSTree();
 
@@ -746,16 +745,16 @@ int Solver::solve(ostream &out) {
             for (const auto &p : back_adj[i]) {
                 int j = p.v;
                 WeightType w = p.weight;
-                const pair<WeightType, WeightType> &pp = get_maxw_sum_path(j, i);
+                const std::pair<WeightType, WeightType> &pp = get_maxw_sum_path(j, i);
 
                 WeightType mw = pp.second;
                 WeightType sum = pp.first;
 
                 sum += w;
-                mw = max(mw, w);
+                mw = std::max(mw, w);
 
                 if ((2 * mw - sum) > eps) {
-                    cerr << "[Triangle inequality] No solution found!\n";
+                    std::cerr << "[Triangle inequality] No solution found!\n";
                     return 1;
                 }
             }
@@ -768,19 +767,19 @@ int Solver::solve(ostream &out) {
                 int j = p.v;
                 WeightType w = p.weight;
                 if (!can_knapsack(i, j, w)) {
-                    cerr << "[SSP][Pre-DFS] Infeasible cycle detected. No solution found.\n";
+                    std::cerr << "[SSP][Pre-DFS] Infeasible cycle detected. No solution found.\n";
                     return 1;
                 }
             }
         }
     }
 
-    vector<vector<unordered_map<int, WeightType>>> all_res;
+    std::vector<std::vector<std::unordered_map<int, WeightType>>> all_res;
 
     for (int component : components) {
-        optional<vector<unordered_map<int, WeightType>>> res = tryAssignAll(component, 0);
+        std::optional<std::vector<std::unordered_map<int, WeightType>>> res = tryAssignAll(component, 0);
         if (!res.has_value()) {
-            cerr << "No solution found!\n";
+            std::cerr << "No solution found!\n";
             return 1;
         }
         all_res.push_back(res.value());
@@ -788,18 +787,18 @@ int Solver::solve(ostream &out) {
 
     outputCombinedResult(out, all_res);
 
-    auto end_bs_count = chrono::high_resolution_clock::now();
-    auto time_bs_count = chrono::duration_cast<chrono::seconds>(end_bs_count - start_bs_count).count();
+    auto end_bs_count = std::chrono::high_resolution_clock::now();
+    auto time_bs_count = std::chrono::duration_cast<std::chrono::seconds>(end_bs_count - start_bs_count).count();
 
-    cerr << "Solver finished in " << time_bs_count << " seconds.\n";
+    std::cerr << "Solver finished in " << time_bs_count << " seconds.\n";
 
     return 0;
 }
 
 void Solver::saveDFSTree() {
-    ofstream logFile("log.txt");
+    std::ofstream logFile("log.txt");
     if (!logFile) {
-        cerr << "Error: Could not open log.txt for writing!\n";
+        std::cerr << "Error: Could not open log.txt for writing!\n";
         return;
     }
 
@@ -822,10 +821,10 @@ void Solver::saveDFSTree() {
     }
 
     logFile.close();
-    cerr << "DFS Tree and Back Edges saved to log.txt\n";
+    std::cerr << "DFS Tree and Back Edges saved to log.txt\n";
 }
 
-bool Solver::verify_solution(const map<int, WeightType> &sol) {
+bool Solver::verify_solution(const std::map<int, WeightType> &sol) {
     for (const auto &edge : edges) {
         int u = edge.u, v = edge.v;
         WeightType w = edge.weight;
@@ -834,23 +833,23 @@ bool Solver::verify_solution(const map<int, WeightType> &sol) {
     return true;
 }
 
-void Solver::outputCombinedResult(ostream &out, const vector<vector<unordered_map<int, WeightType>>> &all_res, int num_solutions) {
+void Solver::outputCombinedResult(std::ostream &out, const std::vector<std::vector<std::unordered_map<int, WeightType>>> &all_res, int num_solutions) {
     // algorithm: pick one from each component, merge and scale
 
-    vector<int> compMap(n + 1);
+    std::vector<int> compMap(n + 1);
     for (int i = 1; i <= n; ++i) compMap[i] = bridged_dsu.find(i);
     CombinedSolutionIterator iter(all_res, bridge_rules, compMap, m_listAllSolutions);
     int solCount = 0;
     while (iter.hasNext()) {
-        unordered_map<int, WeightType> sol = iter.next();
-        map<int, WeightType> sorted_sol(sol.begin(), sol.end());
+        std::unordered_map<int, WeightType> sol = iter.next();
+        std::map<int, WeightType> sorted_sol(sol.begin(), sol.end());
 
-        cerr << "Verifying solution...\n";
+        std::cerr << "Verifying solution...\n";
         if (!verify_solution(sorted_sol)) {
-            cerr << "SOLUTION ERROR.\n";
+            std::cerr << "SOLUTION ERROR.\n";
             return;
         }
-        cerr << "Solution verified!\n";
+        std::cerr << "Solution verified!\n";
 
         out << "-------------------------\n";
         out << "Solution " << ++solCount << ":\n";
@@ -858,7 +857,7 @@ void Solver::outputCombinedResult(ostream &out, const vector<vector<unordered_ma
             out << "Vertex " << p.first << " -> " << p.second << "\n";
         }
         out << "-------------------------\n";
-        cerr << "Saved solution " << solCount << " to file.\n";
+        std::cerr << "Saved solution " << solCount << " to file.\n";
         if (solCount == num_solutions) return;
     }
 }
