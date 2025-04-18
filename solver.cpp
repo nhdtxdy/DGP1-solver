@@ -6,6 +6,10 @@
 #include <map>
 #include <fstream>
 #include <chrono>
+#include <algorithm>
+#include <cstdint>
+#include <tuple>
+#include <type_traits>
 
 // merge assignments from two branches
 void merge(std::vector<std::unordered_map<int, WeightType>> &base, std::vector<std::unordered_map<int, WeightType>> to_merge) {
@@ -21,26 +25,84 @@ void merge(std::vector<std::unordered_map<int, WeightType>> &base, std::vector<s
 }
 
 // merge two knapsack bitsets (for knapsack optimization)
-std::bitset<WINDOW> bitset_merge(const std::bitset<WINDOW> &A, const std::bitset<WINDOW> &B) {
-    std::bitset<WINDOW> const *ptrA = &A;
-    std::bitset<WINDOW> const *ptrB = &B;
+std::bitset<ssp::WINDOW> bitset_merge(const std::bitset<ssp::WINDOW> &A, const std::bitset<ssp::WINDOW> &B) {
+    std::bitset<ssp::WINDOW> const *ptrA = &A;
+    std::bitset<ssp::WINDOW> const *ptrB = &B;
     if (A.count() < B.count()) {
         std::swap(ptrA, ptrB);
     }
     // A > B
-    std::bitset<WINDOW> res;
+    std::bitset<ssp::WINDOW> res;
     for (int idx = ptrB->_Find_first(); idx < (int)ptrB->size(); idx = ptrB->_Find_next(idx)) {
-        int shift = idx - OFFSET;
-        if (shift >= 0 && shift < WINDOW) res |= ((*ptrA) << shift);
-        else if (shift < 0 && (-shift) < WINDOW) res |= ((*ptrA) >> (-shift));
+        int shift = idx - ssp::OFFSET;
+        if (shift >= 0 && shift < ssp::WINDOW) res |= ((*ptrA) << shift);
+        else if (shift < 0 && (-shift) < ssp::WINDOW) res |= ((*ptrA) >> (-shift));
     }
 
     return res;
 }
 
+inline uint64_t splitmix64(uint64_t x) {
+    x += 0x9e3779b97f4a7c15;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111eb;
+    return x ^ (x >> 31);
+}
+
+template <typename WeightType>
+struct TripleHash {
+    std::size_t operator()(const Rule& t) const {
+        uint64_t x = static_cast<uint32_t>(std::get<0>(t));
+        uint64_t y = static_cast<uint32_t>(std::get<1>(t));
+        uint64_t z;
+
+        if constexpr (std::is_integral_v<WeightType>) {
+            z = static_cast<uint64_t>(std::get<2>(t));
+        } else if constexpr (std::is_floating_point_v<WeightType>) {
+            // Bit-cast float to uint64_t for consistent hashing
+            double d = std::get<2>(t);
+            z = *reinterpret_cast<uint64_t*>(&d);
+        } else {
+            static_assert(!sizeof(WeightType), "Unsupported WeightType");
+        }
+
+        uint64_t combined = x;
+        combined = combined * 31 + y;
+        combined = combined * 31 + z;
+
+        return static_cast<std::size_t>(splitmix64(combined));
+    }
+};
+
+struct PairHash {
+    std::size_t operator()(const std::pair<int, int>& p) const {
+        uint64_t a = static_cast<uint32_t>(p.first);
+        uint64_t b = static_cast<uint32_t>(p.second);
+        uint64_t combined = a * 31 + b;
+        return static_cast<std::size_t>(splitmix64(combined));
+    }
+};
+
 // checks if there exists an assignment with sum "value" using edges on the path from v to u
 bool Solver::can_knapsack(int u, int v, WeightType value) {
-    std::bitset<WINDOW> bset;
+    static std::unordered_map<Rule, bool, TripleHash<WeightType>> memoization;
+
+    if (memoization.count(Rule{u, v, value})) {
+        // std::cerr << "already memorized: " << u << ' ' << v << ' ' << value << '\n';
+        return memoization[Rule{u, v, value}];
+    }
+
+    WeightType sum_path_uv = get_maxw_sum_path(u, v).first; // sum from path u -> v
+    if ((std::abs(value) - sum_path_uv) > eps) {
+        return (memoization[Rule{u, v, value}] = false);
+    }
+
+    int cpy_u = u, cpy_v = v;
+    WeightType cpy_value = value;
+
+    // std::cerr << "studying rule: " << u << ' ' << v << ' ' << value << '\n';
+
+    std::bitset<ssp::WINDOW> bset;
     bool first = true;
     for (int i = logn; i >= 0; --i) {
         int mid = binlift[u][i];
@@ -56,30 +118,19 @@ bool Solver::can_knapsack(int u, int v, WeightType value) {
         }
     }
 
-    return bset[value + OFFSET];
+    return (memoization[Rule{cpy_u, cpy_v, cpy_value}] = bset[value + ssp::OFFSET]);
 }
-
-struct PairHash {
-    int n;
-    static constexpr std::size_t MOD = 1e9 + 7;
-
-    explicit PairHash(int n) : n(n) {}
-
-    std::size_t operator()(const std::pair<int, int>& p) const {
-        return (1LL * p.first * (n + 1) + p.second) % MOD;
-    }
-};
 
 std::optional<std::vector<std::unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, WeightType val, int par) {
     static int lowest_infeasible_cycle = -1;
-    static std::unordered_set<std::pair<int, int>, PairHash> tested_cycles(edges.size() - (n - 1), PairHash(n));
+    static std::unordered_set<std::pair<int, int>, PairHash> tested_cycles;
 
 
     if (dep[v] <= lowest_infeasible_cycle) {
         return std::nullopt;
     }
 
-    if (m_knapsack && (val > M_LIMIT || val < -M_LIMIT)) return std::nullopt;
+    if (m_knapsack && (val > ssp::M_LIMIT || val < -ssp::M_LIMIT)) return std::nullopt;
     value[v] = val;
 
     // detect invalid cycle through back edges
@@ -109,7 +160,7 @@ std::optional<std::vector<std::unordered_map<int, WeightType>>> Solver::tryAssig
             WeightType potential_y1 = value[x] + w;
             WeightType potential_y2 = value[x] - w;
 
-            if (!(-M_LIMIT <= potential_y1 && potential_y1 <= M_LIMIT && can_knapsack(y, v, potential_y1 - val)) && !(-M_LIMIT <= potential_y2 && potential_y2 <= M_LIMIT && can_knapsack(y, v, potential_y2 - val))) {
+            if (!(-ssp::M_LIMIT <= potential_y1 && potential_y1 <= ssp::M_LIMIT && can_knapsack(y, v, potential_y1 - val)) && !(-ssp::M_LIMIT <= potential_y2 && potential_y2 <= ssp::M_LIMIT && can_knapsack(y, v, potential_y2 - val))) {
                 return std::nullopt;
             }
         }
@@ -469,13 +520,15 @@ void Solver::dfs_bridges(int v, int par) {
     vis[v] = 2;
 }
 
-void Solver::dfs(int v, int par = -1) {
-    parent[v] = par;
-    binlift[v][0] = par;
-    for (int i = 1; i <= logn; ++i) {
-        if (binlift[v][i - 1] != -1) {
-            int mid = binlift[v][i - 1];
-            binlift[v][i] = binlift[mid][i - 1];
+void Solver::dfs(int v, int par, bool can_binlift) {
+    if (can_binlift) {
+        parent[v] = par;
+        binlift[v][0] = par;
+        for (int i = 1; i <= logn; ++i) {
+            if (binlift[v][i - 1] != -1) {
+                int mid = binlift[v][i - 1];
+                binlift[v][i] = binlift[mid][i - 1];
+            }
         }
     }
 
@@ -488,11 +541,11 @@ void Solver::dfs(int v, int par = -1) {
         if (vis[u] == 1) {
             back_adj[v].push_back({u, w});
 
-            if (m_knapsack) {
+            if (m_knapsack && can_binlift) {
                 int curr = parent[v];
                 int dist = 1;
                 while (true) {
-                    if (dist > MIN_LOOKAHEAD_DEPTH) {
+                    if (dist > ssp::MIN_LOOKAHEAD_DEPTH) {
                         cycle_rules[curr].push_back({u, v, w});
                     }
                     if (curr == u) break;
@@ -506,7 +559,7 @@ void Solver::dfs(int v, int par = -1) {
         else if (vis[u] == 0) {
             dfs_tree_adj[v].push_back({u, w});
             // dfs_tree_adj[u].push_back({v, w});
-            dfs(u, v);
+            dfs(u, v, can_binlift);
         }
     }
     vis[v] = 2;
@@ -514,8 +567,8 @@ void Solver::dfs(int v, int par = -1) {
 
 void Solver::get_knapsack(int v, WeightType w_par, int par) {
     if (par != -1) {
-        knapsack[v][0].set(w_par + OFFSET);
-        knapsack[v][0].set(-w_par + OFFSET);
+        knapsack[v][0].set(w_par + ssp::OFFSET);
+        knapsack[v][0].set(-w_par + ssp::OFFSET);
 
         for (int i = 1; i <= logn; ++i) {
             if (binlift[v][i - 1] != -1) {
@@ -527,9 +580,9 @@ void Solver::get_knapsack(int v, WeightType w_par, int par) {
                 }
                 const auto &bset1 = knapsack[mid][i - 1];
                 for (int idx = bset1._Find_first(); idx < (int)bset1.size(); idx = bset1._Find_next(idx)) {
-                    int shift = idx - OFFSET;
-                    if (shift >= 0 && shift < WINDOW) knapsack[v][i] |= (knapsack[v_cpy][i - 1] << shift);
-                    else if (shift < 0 && (-shift) < WINDOW) knapsack[v][i] |= (knapsack[v_cpy][i - 1] >> (-shift));
+                    int shift = idx - ssp::OFFSET;
+                    if (shift >= 0 && shift < ssp::WINDOW) knapsack[v][i] |= (knapsack[v_cpy][i - 1] << shift);
+                    else if (shift < 0 && (-shift) < ssp::WINDOW) knapsack[v][i] |= (knapsack[v_cpy][i - 1] >> (-shift));
                 }
             }
         }
@@ -585,14 +638,19 @@ std::unordered_set<int> Solver::buildDfsTree(const std::vector<int> &idx, bool f
         dfs_tree_adj[i].clear();
         sz[i] = 0;
         dep[i] = 0;
+        cycle_rules[i].clear();
+        parent[i] = -1;
+        for (int j = 0; j <= logn; ++j) {
+            binlift[i][j] = -1;
+        }
     }
-
+    bool can_binlift = !first_time;
     for (int i = 1; i <= n; ++i) {
         if (!vis[idx[i]]) {
             res.insert(idx[i]);
-            dfs(idx[i]);
+            dfs(idx[i], -1, can_binlift);
             getsz(idx[i]);
-            if (!first_time && m_knapsack) {
+            if (can_binlift && m_knapsack) {
                 std::cerr << "Starting get knapsack...\n";
                 auto start_bs_count = std::chrono::high_resolution_clock::now();
                 get_knapsack(idx[i], -1, -1);
@@ -600,7 +658,7 @@ std::unordered_set<int> Solver::buildDfsTree(const std::vector<int> &idx, bool f
                 auto time_bs_count = std::chrono::duration_cast<std::chrono::milliseconds>(end_bs_count - start_bs_count).count();
                 std::cerr << "Get knapsack done in " << time_bs_count << " milliseconds.\n";
             }
-            if (!first_time && m_triangleInequality) {
+            if (can_binlift && m_triangleInequality) {
                 calculate_sum_pathw(idx[i]);
             }
         }
@@ -617,25 +675,32 @@ std::unordered_set<int> Solver::buildDfsTree(const std::vector<int> &idx, bool f
     return res;
 }
 
-int Solver::solve(std::ostream &out) {
-    auto get_maxw_sum_path = [&] (int u, int v) {
-        std::pair<WeightType, WeightType> res = {0, 0};
-        if (dep[u] > dep[v]) std::swap(u, v);
-        // u is ancestor of v
-        for (int i = logn; i >= 0; --i) {
-            if (binlift[v][i] != -1 && dep[binlift[v][i]] >= dep[u]) {
-                res.first += path_sum[v][i];
-                res.second = std::max(res.second, max_w[v][i]);
-                v = binlift[v][i];
-            }
+std::pair<WeightType, WeightType> Solver::get_maxw_sum_path(int u, int v) {
+    static std::unordered_map<std::pair<int, int>, std::pair<WeightType, WeightType>, PairHash> memoization;
+    
+    if (memoization.count({u, v})) {
+        return memoization[{u, v}];
+    }
+
+    std::pair<WeightType, WeightType> res = {0, 0};
+    if (dep[u] > dep[v]) std::swap(u, v);
+    // u is ancestor of v
+    for (int i = logn; i >= 0; --i) {
+        if (binlift[v][i] != -1 && dep[binlift[v][i]] >= dep[u]) {
+            res.first += path_sum[v][i];
+            res.second = std::max(res.second, max_w[v][i]);
+            v = binlift[v][i];
         }
-        return res;
-    };
+    }
+    return (memoization[{u, v}] = res);
+}
+
+int Solver::solve(std::ostream &out) {
     auto start_bs_count = std::chrono::high_resolution_clock::now();
 
     if (bridgesOpt) {
         find_bridges();
-        std::cerr << "There are " << bridges.size() << " bridges in the graph.\n";
+        std::cerr << "[Bridges] There are " << bridges.size() << " bridges in the graph.\n";
         // purge all bridge edges
         std::vector<Edge> t_edges;
         for (auto edge : edges) {
@@ -732,10 +797,12 @@ int Solver::solve(std::ostream &out) {
 
     std::unordered_set<int> components = buildDfsTree(idx, false);
 
+    std::cerr << "Finished constructing DFS tree.\n";
+
     saveDFSTree();
 
     for (int i = 1; i <= n; ++i) {
-        sort(back_adj[i].begin(), back_adj[i].end(), [&] (const Adj &A, const Adj &B) {
+        std::sort(back_adj[i].begin(), back_adj[i].end(), [&] (const Adj &A, const Adj &B) {
             return dep[A.v] > dep[B.v];
         });
     }
@@ -772,6 +839,26 @@ int Solver::solve(std::ostream &out) {
                 }
             }
         }
+        int shrunk = 0;
+        for (int i = 1; i <= n; ++i) {
+            
+            // Strat 1: Random shuffle
+            // std::shuffle(cycle_rules[i].begin(), cycle_rules[i].end(), rng);
+            
+            // Strat 2: sort by depth
+            std::sort(cycle_rules[i].begin(), cycle_rules[i].end(), [&] (const Rule &A, const Rule &B) {
+                int u_A, v_A, u_B, v_B;
+                WeightType w_A, w_B;
+                std::tie(u_A, v_A, w_A) = A;
+                std::tie(u_B, v_B, w_B) = B;
+                return dep[v_A] < dep[v_B];
+            });
+            if (cycle_rules[i].size() > ssp::MAX_CYCLE_RULES_SIZE) {
+                ++shrunk;
+                cycle_rules[i].resize(ssp::MAX_CYCLE_RULES_SIZE);
+            }
+        }
+        std::cerr << "[SSP] [MAX_CYCLE_RULES_SIZE] Shrunk " << shrunk << " cycle_rules\n";
     }
 
     std::vector<std::vector<std::unordered_map<int, WeightType>>> all_res;
