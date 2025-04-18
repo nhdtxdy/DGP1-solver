@@ -1,6 +1,8 @@
 #include "solver.h"
-#include <bits/stdc++.h>
-using namespace std;
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <cassert>
 
 void trimComment(std::string &line) {
     size_t pos = line.find('#');
@@ -21,21 +23,21 @@ int main(int argc, char *argv[]) {
     // Intended to make I/O faster as we do not use C-style I/O here.
     // But disabling sync_with_stdio is not thread-safe, so this needs
     // to change if multithreading optimizations are applied in the future.
-    ios::sync_with_stdio(false);
-    cin.tie(0); cout.tie(0);
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(0); std::cout.tie(0);
 
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <input_filename> [output_filename] [optimizations] [--list-all-solutions]\n";
+        std::cerr << "Usage: " << argv[0] << " <input_filename> [output_filename] [optimizations] [--list-all-solutions]\n";
         return 1;
     }
 
     #ifdef USE_INTEGER_WEIGHTS
-        cerr << "[WARNING] DGP1 solver is compiled with ONLY integer weights support.\n";
+        std::cerr << "[WARNING] DGP1 solver is compiled with ONLY integer weights support.\n";
     #endif
 
-    string inputFilename = argv[1];
+    std::string inputFilename = argv[1];
     bool outputFileSet = false;
-    string outputFilename;
+    std::string outputFilename;
     
     OptimizationSetting rootSelection = OPT_DEFAULT, neighborSelection = OPT_DEFAULT;
     bool bridgesOpt = false;
@@ -45,12 +47,12 @@ int main(int argc, char *argv[]) {
     bool triangleInequality = false;
     
     for (int i = 2; i < argc; i++) {
-        string arg = argv[i];
+        std::string arg = argv[i];
         if (arg.starts_with("--optimizations=")) {
-            string settings = arg.substr(16); // Extract the part after "--optimizations="
-            stringstream ss(settings);
-            string token;
-            while (getline(ss, token, ',')) {
+            std::string settings = arg.substr(16); // Extract the part after "--optimizations="
+            std::stringstream ss(settings);
+            std::string token;
+            while (std::getline(ss, token, ',')) {
                 token = trim(token);
                 if (token == "bridges") {
                     bridgesOpt = true;
@@ -61,12 +63,12 @@ int main(int argc, char *argv[]) {
                 } else if (token == "triangle") {
                     triangleInequality = true;
                 } else {
-                    cerr << "Unknown optimization option in --optimizations: " << token << "\n";
+                    std::cerr << "Unknown optimization option in --optimizations: " << token << "\n";
                     return 1;
                 }
             }
         } else if (arg.starts_with("--root=")) {
-            string token = arg.substr(7);
+            std::string token = arg.substr(7);
             if (token == "default") {
                 rootSelection = OPT_DEFAULT;
             }
@@ -77,11 +79,11 @@ int main(int argc, char *argv[]) {
                 rootSelection = OPT_HIGHEST_CYCLE;
             }
             else {
-                cerr << "Unknown root selection strategy: " << token << '\n';
+                std::cerr << "Unknown root selection strategy: " << token << '\n';
                 return 1;
             }
         } else if (arg.starts_with("--neighbors=")) {
-            string token = arg.substr(12);
+            std::string token = arg.substr(12);
             if (token == "default") {
                 neighborSelection = OPT_DEFAULT;
             }
@@ -92,7 +94,7 @@ int main(int argc, char *argv[]) {
                 neighborSelection = OPT_HIGHEST_CYCLE;
             }
             else {
-                cerr << "Unknown neighbor selection strategy: " << token << '\n';
+                std::cerr << "Unknown neighbor selection strategy: " << token << '\n';
                 return 1;
             }
         } else if (arg == "--list-all-solutions") {
@@ -102,19 +104,19 @@ int main(int argc, char *argv[]) {
                 outputFilename = arg;
                 outputFileSet = true;
             } else {
-                cerr << "Unrecognized argument: " << arg << "\n";
+                std::cerr << "Unrecognized argument: " << arg << "\n";
                 return 1;
             }
         }
     }
 
-    ifstream file(inputFilename);
+    std::ifstream file(inputFilename);
     if (!file) {
-        cerr << "Error: Could not open file " << inputFilename << "\n";
+        std::cerr << "Error: Could not open file " << inputFilename << "\n";
         return 1;
     }
 
-    string line;
+    std::string line;
     int n = 0;
 
     auto checkValidVertex = [&] (int v) {
@@ -122,22 +124,22 @@ int main(int argc, char *argv[]) {
     };
 
     int lineno = 0;
-    vector<Edge> edges;
+    std::vector<Edge> edges;
 
-    while (getline(file, line)) {
+    while (std::getline(file, line)) {
         ++lineno;
         trimComment(line); 
         line = trim(line);
         if (line.empty()) continue;
 
-        istringstream iss(line);
-        string token;
+        std::istringstream iss(line);
+        std::string token;
         iss >> token;
 
         if (token == "param") {
             iss >> token;
             if (token == "n") {
-                string eq;
+                std::string eq;
                 iss >> eq;
                 iss >> n;
             } else if (token == ":") {
@@ -150,17 +152,17 @@ int main(int argc, char *argv[]) {
                         if (line.empty()) continue;
                         if (line == ";") break;
 
-                        istringstream edgeStream(line);
+                        std::istringstream edgeStream(line);
                         int u, v, I;
                         double c;
                         if (edgeStream >> u >> v >> c >> I) {
                             if (!checkValidVertex(u) || !checkValidVertex(v)) {
-                                cerr << "Error on line " << lineno << ": invalid vertex!\n";
+                                std::cerr << "Error on line " << lineno << ": invalid vertex!\n";
                                 return 0;
                             }
                             #ifdef USE_INTEGER_WEIGHTS
                                 if (std::abs(floor(c) - c) > eps) {
-                                    cerr << "[ERROR] Floating-point value detected in input graph!\n";
+                                    std::cerr << "[ERROR] Floating-point value detected in input graph!\n";
                                     return 1;
                                 }
                             #endif
@@ -182,9 +184,9 @@ int main(int argc, char *argv[]) {
     Solver solver(n, edges, rootSelection, neighborSelection, bridgesOpt, listAllSolutions, randomize, knapsack, triangleInequality);
 
     if (outputFileSet) {
-        ofstream outfile(outputFilename);
+        std::ofstream outfile(outputFilename);
         if (!outfile) {
-            cerr << "Error: Could not open output file " << outputFilename << "\n";
+            std::cerr << "Error: Could not open output file " << outputFilename << "\n";
             return 1;
         }
         
@@ -192,7 +194,7 @@ int main(int argc, char *argv[]) {
         outfile.close();
     }
     else {
-        solver.solve(cout);
+        solver.solve(std::cout);
     }
    
     return 0;

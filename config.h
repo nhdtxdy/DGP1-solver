@@ -19,7 +19,7 @@ constexpr int WINDOW = E_LIMIT * 2 + 1;
 const int MIN_LOOKAHEAD_DEPTH = std::max(7, (int)log2(WINDOW) - 3);
 
 // Epsilon value for floating-point precision
-constexpr WeightType eps = 1e-6;
+constexpr WeightType eps = (WeightType)1e-6;
 
 #endif // CONFIG_H
 
