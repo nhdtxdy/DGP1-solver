@@ -11,14 +11,20 @@
     using WeightType = double;
 #endif
 
-// Knapsack parameters
+// SSP parameters
 namespace ssp {
-    constexpr int M_LIMIT = 5000; // the actual range is -M_LIMIT/2 to M_LIMIT/2 (usually doubled, unless known for sure)
+    constexpr int REAL_M_LIMIT = 2500; // Modify this to change the value range to search.
+
+    // -------------------------------------------------------------------
+    // DO NOT MODIFY UNLESS ABSOLUTELY SURE
+    constexpr int M_LIMIT = REAL_M_LIMIT * 2;
     constexpr int E_LIMIT = M_LIMIT * 2;
     constexpr int OFFSET = E_LIMIT; // 0 to 2 * M_LIMIT
     constexpr int WINDOW = E_LIMIT * 2 + 1;
-    const int MIN_LOOKAHEAD_DEPTH = std::max(7, (int)log2(WINDOW) - 3);
-    const int MAX_CYCLE_RULES_SIZE = 5;
+    // -------------------------------------------------------------------
+    
+    const int MIN_LOOKAHEAD_DEPTH = std::max(7, (int)log2(WINDOW) - 3); // Specifies the minimum distance for the SSP to be enabled.
+    const int MAX_CYCLE_RULES_SIZE = 5; // Limit how many SSP rules will be checked for every node (try 1-10).
 }
 
 // Epsilon value for floating-point precision
