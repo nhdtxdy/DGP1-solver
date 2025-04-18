@@ -65,12 +65,12 @@ private:
     
     bool bridgesOpt, m_listAllSolutions, m_randomize, m_knapsack, m_triangleInequality;
 
-    std::vector<std::vector<std::bitset<WINDOW>>> knapsack;
+    std::vector<std::vector<std::bitset<ssp::WINDOW>>> knapsack;
     std::vector<std::vector<int>> binlift;
     std::vector<std::vector<WeightType>> path_sum, max_w;
 
     void bfs(int v);
-    void dfs(int v, int par);
+    void dfs(int v, int par, bool can_binlift);
     void getsz(int v, int par);
     std::unordered_set<int> buildDfsTree(const std::vector<int> &idx, bool first_time);
     bool tryAssign(int v, WeightType val);
@@ -84,6 +84,8 @@ private:
     bool can_knapsack(int u, int v, WeightType w);
     bool verify_solution(const std::map<int, WeightType> &sol);
     void calculate_sum_pathw(int v, int par = -1, WeightType w = 0);
+
+    std::pair<WeightType, WeightType> get_maxw_sum_path(int u, int v);
 };
 
 #endif // SOLVER_H
