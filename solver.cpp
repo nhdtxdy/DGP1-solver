@@ -122,13 +122,15 @@ bool Solver::can_knapsack(int u, int v, WeightType value) {
 }
 
 std::optional<std::vector<std::unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, WeightType val, int par) {
-    static int lowest_infeasible_cycle = -1;
-    static std::unordered_set<std::pair<int, int>, PairHash> tested_cycles;
+    // static int lowest_infeasible_cycle = -1;
+    // static std::unordered_set<std::pair<int, int>, PairHash> tested_cycles;
 
+    // std::cerr << v << ' ' << val << ' ' << par << ' ' << lowest_infeasible_cycle << '\n';
 
-    if (dep[v] <= lowest_infeasible_cycle) {
-        return std::nullopt;
-    }
+    // if (dep[v] < lowest_infeasible_cycle) {
+        // std::cerr << "PROBLEM: " << v << ' ' << lowest_infeasible_cycle << '\n';
+        // return std::nullopt;
+    // }
 
     if (m_knapsack && (val > ssp::M_LIMIT || val < -ssp::M_LIMIT)) return std::nullopt;
     value[v] = val;
@@ -138,17 +140,16 @@ std::optional<std::vector<std::unordered_map<int, WeightType>>> Solver::tryAssig
         int u = p.v;
         WeightType w = p.weight;
         if (std::abs(std::abs(value[v] - value[u]) - w) > eps) {
-            if (!tested_cycles.count({v, u})) {
-                lowest_infeasible_cycle = dep[u];
-            }
+            // if (!tested_cycles.count({v, u})) {
+            //     std::cerr << "OOPS: " << u << ' ' << v << ' ' << dep[u] << '\n';
+            //     lowest_infeasible_cycle = dep[u];
+            // }
             return std::nullopt;
         }
-        else {
-            tested_cycles.insert({v, u});
-        }
+        // else {
+        //     tested_cycles.insert({v, u});
+        // }
     }
-
-    lowest_infeasible_cycle = -1;
 
     if (m_knapsack) {
         for (const Rule &rule : cycle_rules[v]) {
@@ -208,6 +209,7 @@ std::optional<std::vector<std::unordered_map<int, WeightType>>> Solver::tryAssig
         merge(merged, to_merge);
     }
 
+    // lowest_infeasible_cycle = -1;
 
     return merged;
 }
@@ -435,6 +437,7 @@ Solver::Solver(int n, const std::vector<Edge>& edges, OptimizationSetting rootSe
             m_knapsack(knapsack),
             m_triangleInequality(triangleInequality)
 {
+    std::cerr << "DGP1 Solver started for n = " << n << ", m = " << edges.size() << '\n';
     std::cerr << "DGP1 Solver initialized with optimizations: ";
     std::cerr << (knapsack ? "ssp, " : "");
     std::cerr << (randomize ? "randomize, " : "");
