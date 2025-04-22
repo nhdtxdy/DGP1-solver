@@ -2,34 +2,53 @@ import random
 import itertools
 
 def generate_dgp1_instance(n, m, M):
-    assert m >= n and M >= max(10, n // 2), "Invalid input conditions"
+    assert m >= n - 1 and M >= max(10, n // 2), "Invalid input conditions"
 
-    vertex_positions = {}
-    for v in range(n):
-        while True:
-            x_v = random.randint(-M, M)
-            if v == n - 1:
-                if x_v != vertex_positions.get(0, None):
-                    vertex_positions[v] = x_v
-                    break
+    vertex_positions = {v: random.randint(-M, M) for v in range(n)}
 
-            elif x_v != vertex_positions.get(v + 1, None):
-                vertex_positions[v] = x_v
-                break
+    parent = list(range(n))
+    rank = [0] * n
+
+    def find(u):
+        if parent[u] != u:
+            parent[u] = find(parent[u])
+        return parent[u]
+
+    def union(u, v):
+        ru, rv = find(u), find(v)
+        if ru == rv:
+            return False
+        if rank[ru] < rank[rv]:
+            parent[ru] = rv
+        else:
+            parent[rv] = ru
+            if rank[ru] == rank[rv]:
+                rank[ru] += 1
+        return True
 
     edges = set()
-    for v in range(n):
-        u, v_next = v, (v + 1) % n
-        edges.add((min(u, v_next) + 1, max(u, v_next) + 1))
+    nodes = list(range(n))
+    random.shuffle(nodes)
+    for i in range(1, n):
+        while True:
+            u = nodes[i]
+            v = random.choice(nodes[:i])
+            if union(u, v):
+                edges.add((min(u, v) + 1, max(u, v) + 1))
+                break
 
     while len(edges) < m:
         u, v = random.sample(range(n), 2)
-        u, v = min(u, v) + 1, max(u, v) + 1  # Convert to 1-based indexing
-        if (u, v) not in edges and vertex_positions[u - 1] != vertex_positions[v - 1]:
+        if u == v:
+            continue
+        u, v = min(u, v) + 1, max(u, v) + 1
+        if (u, v) not in edges:
             edges.add((u, v))
 
-    edge_weights = {(u, v): abs(vertex_positions[u - 1] - vertex_positions[v - 1])
-                    for u, v in edges}
+    edge_weights = {
+        (u, v): abs(vertex_positions[u - 1] - vertex_positions[v - 1])
+        for u, v in edges
+    }
 
     return n, edges, edge_weights, vertex_positions
 
