@@ -13,7 +13,7 @@
 
 // SSP parameters
 namespace ssp {
-    constexpr int REAL_M_LIMIT = 2500; // Modify this to change the value range to search.
+    constexpr int REAL_M_LIMIT = 5000; // Modify this to change the value range to search.
 
     // -------------------------------------------------------------------
     // DO NOT MODIFY UNLESS ABSOLUTELY SURE
@@ -25,6 +25,10 @@ namespace ssp {
     
     const int MIN_LOOKAHEAD_DEPTH = std::max(7, (int)log2(WINDOW) - 3); // Specifies the minimum distance for the SSP to be enabled.
     const int MAX_CYCLE_RULES_SIZE = 5; // Limit how many SSP rules will be checked for every node (try 1-10).
+}
+
+namespace randomize {
+    constexpr int RANDOMIZE_ARRAY_SIZE = 5e6;
 }
 
 // Epsilon value for floating-point precision

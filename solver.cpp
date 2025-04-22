@@ -122,6 +122,7 @@ bool Solver::can_knapsack(int u, int v, WeightType value) {
 }
 
 std::optional<std::vector<std::unordered_map<int, WeightType>>> Solver::tryAssignAll(int v, WeightType val, int par) {
+    static int counter = 0;
     // static int lowest_infeasible_cycle = -1;
     // static std::unordered_set<std::pair<int, int>, PairHash> tested_cycles;
 
@@ -177,10 +178,14 @@ std::optional<std::vector<std::unordered_map<int, WeightType>>> Solver::tryAssig
         WeightType w = p.weight;
         if (u == par) continue;
 
+        ++counter;
+        if (counter >= randomize::RANDOMIZE_ARRAY_SIZE) {
+            counter -= randomize::RANDOMIZE_ARRAY_SIZE;
+        }
+
         // 50% chance to flip the sign of w
-        if (m_randomize) {
-            double chance = ran_gen(rng);
-            if (chance > 0.5) w = -w;
+        if (m_randomize && randomize_array[counter]) {
+            w = -w;
         }
 
 
@@ -469,6 +474,19 @@ Solver::Solver(int n, const std::vector<Edge>& edges, OptimizationSetting rootSe
     this->logn = 31;
     for (int i = 30; i >= 0; --i) {
         if ((1 << i) >= n) this->logn = i;
+    }
+
+    if (randomize) {
+        randomize_array.resize(randomize::RANDOMIZE_ARRAY_SIZE);
+        for (int i = 0; i < randomize::RANDOMIZE_ARRAY_SIZE; ++i) {
+            double chance = ran_gen(rng);
+            if (chance > 0.5) {
+                randomize_array[i] = true;
+            }
+            else {
+                randomize_array[i] = false;
+            }
+        }
     }
 
     // cerr << "logn: " << logn << '\n';

@@ -86,6 +86,8 @@ private:
     void calculate_sum_pathw(int v, int par = -1, WeightType w = 0);
 
     std::pair<WeightType, WeightType> get_maxw_sum_path(int u, int v);
+
+    std::vector<bool> randomize_array;
 };
 
 #endif // SOLVER_H
