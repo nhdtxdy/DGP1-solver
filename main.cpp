@@ -183,6 +183,8 @@ int main(int argc, char *argv[]) {
 
     Solver solver(n, edges, rootSelection, neighborSelection, bridgesOpt, listAllSolutions, randomize, knapsack, triangleInequality);
 
+    int ret = 0;
+
     if (outputFileSet) {
         std::ofstream outfile(outputFilename);
         if (!outfile) {
@@ -190,12 +192,12 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         
-        solver.solve(outfile);
+        ret = solver.solve(outfile);
         outfile.close();
     }
     else {
-        solver.solve(std::cout);
+        ret = solver.solve(std::cout);
     }
    
-    return 0;
+    return ret;
 }
