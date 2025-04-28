@@ -10,11 +10,14 @@
 #include "dsu.h"
 #include <optional>
 #include <random>
-#include <bitset>
 #include <map>
 #include "config.h"
+#include "bitset2/bitset2.hpp"
 
 using Rule = std::tuple<int, int, WeightType>;
+
+template<size_t N>
+using BS2 = Bitset2::bitset2<N>;
 
 enum OptimizationSetting { OPT_DEFAULT, OPT_HIGHEST_ORDER, OPT_HIGHEST_CYCLE };
 
@@ -65,7 +68,7 @@ private:
     
     bool bridgesOpt, m_listAllSolutions, m_randomize, m_knapsack, m_triangleInequality;
 
-    std::vector<std::vector<std::bitset<ssp::WINDOW>>> knapsack;
+    std::vector<std::vector<BS2<ssp::WINDOW>>> knapsack;
     std::vector<std::vector<int>> binlift;
     std::vector<std::vector<WeightType>> path_sum, max_w;
 

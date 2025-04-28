@@ -10,3 +10,6 @@ test
 test.cpp
 Statement.pdf
 .gdb_history
+tmp/
+.DS_Store
+build/

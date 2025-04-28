@@ -25,16 +25,16 @@ void merge(std::vector<std::unordered_map<int, WeightType>> &base, std::vector<s
 }
 
 // merge two knapsack bitsets (for knapsack optimization)
-std::bitset<ssp::WINDOW> bitset_merge(const std::bitset<ssp::WINDOW> &A, const std::bitset<ssp::WINDOW> &B) {
-    std::bitset<ssp::WINDOW> const *ptrA = &A;
-    std::bitset<ssp::WINDOW> const *ptrB = &B;
+BS2<ssp::WINDOW> bitset_merge(const BS2<ssp::WINDOW> &A, const BS2<ssp::WINDOW> &B) {
+    BS2<ssp::WINDOW> const *ptrA = &A;
+    BS2<ssp::WINDOW> const *ptrB = &B;
     if (A.count() < B.count()) {
         std::swap(ptrA, ptrB);
     }
     // A > B
-    std::bitset<ssp::WINDOW> res;
-    for (int idx = ptrB->_Find_first(); idx < (int)ptrB->size(); idx = ptrB->_Find_next(idx)) {
-        int shift = idx - ssp::OFFSET;
+    BS2<ssp::WINDOW> res;
+    for (size_t idx = ptrB->find_first(); idx < ptrB->size(); idx = ptrB->find_next(idx)) {
+        int shift = (int)idx - ssp::OFFSET;
         if (shift >= 0 && shift < ssp::WINDOW) res |= ((*ptrA) << shift);
         else if (shift < 0 && (-shift) < ssp::WINDOW) res |= ((*ptrA) >> (-shift));
     }
@@ -102,7 +102,7 @@ bool Solver::can_knapsack(int u, int v, WeightType value) {
 
     // std::cerr << "studying rule: " << u << ' ' << v << ' ' << value << '\n';
 
-    std::bitset<ssp::WINDOW> bset;
+    BS2<ssp::WINDOW> bset;
     bool first = true;
     for (int i = logn; i >= 0; --i) {
         int mid = binlift[u][i];
@@ -600,8 +600,8 @@ void Solver::get_knapsack(int v, WeightType w_par, int par) {
                     std::swap(v_cpy, mid);
                 }
                 const auto &bset1 = knapsack[mid][i - 1];
-                for (int idx = bset1._Find_first(); idx < (int)bset1.size(); idx = bset1._Find_next(idx)) {
-                    int shift = idx - ssp::OFFSET;
+                for (size_t idx = bset1.find_first(); idx < bset1.size(); idx = bset1.find_next(idx)) {
+                    int shift = (int)idx - ssp::OFFSET;
                     if (shift >= 0 && shift < ssp::WINDOW) knapsack[v][i] |= (knapsack[v_cpy][i - 1] << shift);
                     else if (shift < 0 && (-shift) < ssp::WINDOW) knapsack[v][i] |= (knapsack[v_cpy][i - 1] >> (-shift));
                 }
@@ -679,7 +679,7 @@ std::unordered_set<int> Solver::buildDfsTree(const std::vector<int> &idx, bool f
                 auto time_bs_count = std::chrono::duration_cast<std::chrono::milliseconds>(end_bs_count - start_bs_count).count();
                 std::cerr << "Get knapsack done in " << time_bs_count << " milliseconds.\n";
             }
-            if (can_binlift && m_triangleInequality) {
+            if (can_binlift && (m_triangleInequality || m_knapsack)) {
                 calculate_sum_pathw(idx[i]);
             }
         }

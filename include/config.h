@@ -6,7 +6,7 @@
 #define USE_INTEGER_WEIGHTS
 
 #ifdef USE_INTEGER_WEIGHTS
-    using WeightType = long long;
+    using WeightType = int;
 #else
     using WeightType = double;
 #endif
