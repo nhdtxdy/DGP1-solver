@@ -1,37 +1,40 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -std=c++20 -O3
+CXXFLAGS = -Iinclude -Wall -Wextra -std=c++20 -O3
+
+# Folders
+SRC_DIR = src
+BUILD_DIR = build
 
 # Executable names
 SOLVER = solver
 SPLITUTIL = splitutil
 
-# Source files for each target.
-# The solver executable uses main.cpp (the entry point) along with the other components.
-SOLVER_SRCS = main.cpp solver.cpp dsu.cpp
-# The splitutil executable uses its own main in splitutil.cpp.
-SPLITUTIL_SRCS = splitutil.cpp dsu.cpp
+# Source files
+SOLVER_SRCS = $(SRC_DIR)/main.cpp $(SRC_DIR)/solver.cpp $(SRC_DIR)/dsu.cpp
+SPLITUTIL_SRCS = $(SRC_DIR)/splitutil.cpp $(SRC_DIR)/dsu.cpp
 
-# Object files for each target.
-SOLVER_OBJS = $(SOLVER_SRCS:.cpp=.o)
-SPLITUTIL_OBJS = $(SPLITUTIL_SRCS:.cpp=.o)
+# Object files (in build/)
+SOLVER_OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SOLVER_SRCS))
+SPLITUTIL_OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SPLITUTIL_SRCS))
 
-# Default target builds both executables.
+# Default target
 all: $(SOLVER) $(SPLITUTIL)
 
-# Build the solver executable.
+# Build the solver executable
 $(SOLVER): $(SOLVER_OBJS)
-	$(CXX) $(CXXFLAGS) -o $(SOLVER) $(SOLVER_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
-# Build the splitutil executable.
+# Build the splitutil executable
 $(SPLITUTIL): $(SPLITUTIL_OBJS)
-	$(CXX) $(CXXFLAGS) -o $(SPLITUTIL) $(SPLITUTIL_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
-# Pattern rule to compile .cpp files to .o files.
-%.o: %.cpp
+# Compile each .cpp into build/*.o
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Clean up generated files.
+# Clean up
 clean:
-	rm -f $(SOLVER) $(SPLITUTIL) $(SOLVER_OBJS) $(SPLITUTIL_OBJS)
+	rm -rf $(BUILD_DIR) $(SOLVER) $(SPLITUTIL)
 
 .PHONY: all clean
