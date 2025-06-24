@@ -3,6 +3,88 @@
 #include <sstream>
 #include <fstream>
 #include <cassert>
+#include "config.h"
+#include <algorithm>
+#include <cstdlib>
+
+void writeMiniZincModel(const std::string &filename, int n, const std::vector<Edge> &edges) {
+    std::ofstream out(filename);
+    if (!out) {
+        std::cerr << "Error: Could not open MiniZinc output file " << filename << "\n";
+        return;
+    }
+
+    WeightType B_value = 0;
+    for (const auto &e : edges) {
+        B_value = std::max<WeightType>(B_value, static_cast<WeightType>(std::abs(e.weight)));
+    }
+
+    if (B_value == 0) B_value = 1; // Ensure the domain is non-empty.
+
+    out << "int: B = " << B_value << ";\n";
+    out << "int: n = " << n << ";\n";
+    out << "array[1..n] of var 0..B: P;\n\n";
+
+    for (const auto &e : edges) {
+        out << "constraint abs(P[" << e.u << "] - P[" << e.v << "]) = " << e.weight << ";\n";
+    }
+
+    out << "\nsolve satisfy;\n";
+
+    out.close();
+}
+
+void writeGurobiModel(const std::string &filename, int n, const std::vector<Edge> &edges) {
+    const int DOMAIN_MAX = 14;  // Values are in [0,14]
+
+    std::ofstream out(filename);
+    if (!out) {
+        std::cerr << "Error: Could not open Gurobi output file " << filename << "\n";
+        return;
+    }
+
+    // Dummy objective – we only care about feasibility.
+    out << "Minimize\n  0\n\n";
+
+    out << "Subject To\n";
+
+    // 1. Each vertex gets exactly one value.
+    for (int i = 1; i <= n; ++i) {
+        out << "  assign_" << i << ": ";
+        for (int v = 0; v <= DOMAIN_MAX; ++v) {
+            if (v) out << " + ";
+            out << "p" << i << "_" << v;
+        }
+        out << " = 1\n";
+    }
+
+    // 2. Edge constraints – forbid value pairs whose difference is not equal to the required weight.
+    size_t cid = 0;
+    for (const auto &e : edges) {
+        int w = static_cast<int>(std::abs(e.weight));
+        for (int vu = 0; vu <= DOMAIN_MAX; ++vu) {
+            for (int vv = 0; vv <= DOMAIN_MAX; ++vv) {
+                if (std::abs(vu - vv) == w) continue; // allowed pairs – skip
+                out << "  c" << cid++ << ": p" << e.u << "_" << vu << " + p" << e.v << "_" << vv << " <= 1\n";
+            }
+        }
+    }
+
+    // 3. OPTIONAL: fix P[1] = 0 to remove translation symmetry.
+    if (n > 0) {
+        out << "  fix_root: p1_0 = 1\n";
+    }
+
+    out << "\nBinary\n";
+    for (int i = 1; i <= n; ++i) {
+        for (int v = 0; v <= DOMAIN_MAX; ++v) {
+            out << "  p" << i << "_" << v << "\n";
+        }
+    }
+
+    out << "\nEnd\n";
+    out.close();
+}
 
 void trimComment(std::string &line) {
     size_t pos = line.find('#');
@@ -27,7 +109,7 @@ int main(int argc, char *argv[]) {
     std::cin.tie(0); std::cout.tie(0);
 
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <input_filename> [output_filename] [optimizations] [--list-all-solutions]\n";
+        std::cerr << "Usage: " << argv[0] << " <input_filename> [output_filename] [optimizations] [--list-all-solutions] [--export-mzn=<filename>] [--export-gurobi=<filename>]\n";
         return 1;
     }
 
@@ -38,6 +120,7 @@ int main(int argc, char *argv[]) {
     std::string inputFilename = argv[1];
     bool outputFileSet = false;
     std::string outputFilename;
+    std::string configFilename;
     
     OptimizationSetting rootSelection = OPT_DEFAULT, neighborSelection = OPT_DEFAULT;
     bool bridgesOpt = false;
@@ -45,10 +128,18 @@ int main(int argc, char *argv[]) {
     bool listAllSolutions = false;
     bool knapsack = false;
     bool triangleInequality = false;
+    bool preprocessKnapsack = false;
+    bool bounds = false;
+    bool exportMzn = false;
+    std::string mznFilename;
+    bool exportGurobi = false;
+    std::string gurobiFilename;
     
     for (int i = 2; i < argc; i++) {
         std::string arg = argv[i];
-        if (arg.starts_with("--optimizations=")) {
+        if (arg.starts_with("--config=")) {
+            configFilename = arg.substr(9);
+        } else if (arg.starts_with("--optimizations=")) {
             std::string settings = arg.substr(16); // Extract the part after "--optimizations="
             std::stringstream ss(settings);
             std::string token;
@@ -60,8 +151,12 @@ int main(int argc, char *argv[]) {
                     randomize = true;
                 } else if (token == "ssp") {
                     knapsack = true;
+                } else if (token == "ssp-preprocess") {
+                    preprocessKnapsack = true;
                 } else if (token == "triangle") {
                     triangleInequality = true;
+                } else if (token == "bounds") {
+                    bounds = true;
                 } else {
                     std::cerr << "Unknown optimization option in --optimizations: " << token << "\n";
                     return 1;
@@ -78,6 +173,9 @@ int main(int argc, char *argv[]) {
             else if (token == "highest-cycle") {
                 rootSelection = OPT_HIGHEST_CYCLE;
             }
+            else if (token == "highest-score") {
+                rootSelection = OPT_HIGHEST_SCORE;
+            }
             else {
                 std::cerr << "Unknown root selection strategy: " << token << '\n';
                 return 1;
@@ -93,12 +191,21 @@ int main(int argc, char *argv[]) {
             else if (token == "highest-cycle") {
                 neighborSelection = OPT_HIGHEST_CYCLE;
             }
+            else if (token == "highest-score") {
+                neighborSelection = OPT_HIGHEST_SCORE;
+            }
             else {
                 std::cerr << "Unknown neighbor selection strategy: " << token << '\n';
                 return 1;
             }
         } else if (arg == "--list-all-solutions") {
             listAllSolutions = true;
+        } else if (arg.starts_with("--export-mzn=")) {
+            exportMzn = true;
+            mznFilename = arg.substr(13); // Extract filename after the '='
+        } else if (arg.starts_with("--export-gurobi=")) {
+            exportGurobi = true;
+            gurobiFilename = arg.substr(16);
         } else {
             if (!outputFileSet) {
                 outputFilename = arg;
@@ -109,6 +216,13 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+
+    if (!configFilename.empty()) {
+        config.loadFromFile(configFilename);
+    }
+
+    // Print the final configuration that will be used by the solver
+    config.printConfig();
 
     std::ifstream file(inputFilename);
     if (!file) {
@@ -161,7 +275,7 @@ int main(int argc, char *argv[]) {
                                 return 0;
                             }
                             #ifdef USE_INTEGER_WEIGHTS
-                                if (std::abs(floor(c) - c) > eps) {
+                                if (std::abs(floor(c) - c) > config.eps) {
                                     std::cerr << "[ERROR] Floating-point value detected in input graph!\n";
                                     return 1;
                                 }
@@ -176,12 +290,32 @@ int main(int argc, char *argv[]) {
 
     file.close();
 
+    if (exportMzn) {
+        if (mznFilename.empty()) {
+            mznFilename = "graph.mzn"; // default filename if none provided
+        }
+        writeMiniZincModel(mznFilename, n, edges);
+        // return 0;
+    }
+
+    if (exportGurobi) {
+        if (gurobiFilename.empty()) {
+            gurobiFilename = "graph.lp";
+        }
+        writeGurobiModel(gurobiFilename, n, edges);
+        // return 0;
+    }
+
+    if (exportMzn || exportGurobi) {
+        return 0;
+    }
+
     if (knapsack) {
         assert(std::is_integral<WeightType>::value && std::is_signed<WeightType>::value &&
             "Error: SSP optimization requires the program to be compiled with USE_INTEGER_WEIGHTS.");
     }
 
-    Solver solver(n, edges, rootSelection, neighborSelection, bridgesOpt, listAllSolutions, randomize, knapsack, triangleInequality);
+    Solver solver(n, edges, rootSelection, neighborSelection, bridgesOpt, listAllSolutions, randomize, knapsack, triangleInequality, preprocessKnapsack, bounds);
 
     int ret = 0;
 
