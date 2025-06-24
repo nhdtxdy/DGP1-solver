@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Iinclude -Wall -Wextra -std=c++20 -O3 -MMD -MP -fopenmp -Wno-reorder
+CXXFLAGS = -Iinclude -Wall -Wextra -std=c++20 -O3 -MMD -MP -fopenmp -Wno-reorder -march=native
 
 # Folders
 SRC_DIR = src
