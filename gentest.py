@@ -2,7 +2,7 @@ import random
 import itertools
 
 def generate_dgp1_instance(n, m, M):
-    assert m >= n - 1 and M >= max(10, n // 2), "Invalid input conditions"
+    # assert m >= n - 1 and M >= max(10, n // 2), "Invalid input conditions"
 
     vertex_positions = {v: random.randint(-M, M) for v in range(n)}
 
